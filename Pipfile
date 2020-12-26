@@ -1,0 +1,20 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+"discord.py" = {extras = ["voice"], version = "*"}
+rethinkdb = "*"
+youtube-dl = "*"
+urllib3 = "*"
+"discord.ext.menus" = {git = "https://github.com/Rapptz/discord-ext-menus"}
+python-dotenv = "*"
+
+[dev-packages]
+flake8 = "*"
+autopep8 = "*"
+pynvim = "*"
+
+[requires]
+python_version = "3.8"
