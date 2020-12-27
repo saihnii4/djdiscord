@@ -4,6 +4,7 @@ import textwrap
 import typing
 from urllib.parse import urlparse
 
+import discord.ext.commands
 import discord.ext.menus
 import youtube_dl
 
@@ -12,9 +13,30 @@ from utils.constants import Song
 from utils.constants import YoutubeLogger
 from utils.constants import song_emoji_conversion
 
+class IndexConverter(discord.ext.commands.Converter):
+    async def convert(self, ctx: discord.ext.commands.Context, argument: str):
+        try:
+            argument = int(argument)
+        except ValueError:
+            return
+
+        if argument <= 0:
+            return
+
+        return argument
 
 class PlaylistConverter(discord.ext.commands.Converter):
-    async def convert(self, ctx, argument):
+    async def convert(self, ctx: discord.ext.commands.Context, argument: str) -> Playlist:
+        try:
+            author = await discord.ext.commands.MemberConverter().convert(ctx, argument)
+            playlist = (await ctx.database.get(author=author.id))[0]
+            return Playlist(playlist["id"], playlist["songs"], playlist["author"], playlist["cover"])
+        except Exception as exc:
+            if isinstance(exc, discord.ext.commands.MemberNotFound):
+                pass
+            if isinstance(exc, IndexError):
+                return
+
         if (
                 re.compile(
                     "^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$"
@@ -27,11 +49,11 @@ class PlaylistConverter(discord.ext.commands.Converter):
                     .run(ctx.database.connection)
             )
             return Playlist(
-                playlist["id"], playlist["name"], playlist["songs"], playlist["author"]
+                playlist["id"], playlist["songs"], playlist["author"], playlist["cover"]
             )
 
-        slot = (await ctx.database.get(ctx, name=argument))[0]
-        return Playlist(slot["id"], slot["name"], slot["songs"], slot["author"])
+        slot = (await ctx.database.get(name=argument))[0]
+        return Playlist(slot["id"], slot["songs"], playlist["author"], playlist["cover"])
 
 
 class SongConverter(discord.ext.commands.Converter):
@@ -71,16 +93,23 @@ class SongConverter(discord.ext.commands.Converter):
 
 
 class PlaylistPaginator(discord.ext.menus.ListPageSource):
-    def __init__(self, entries: typing.List[str], *, ctx: discord.ext.commands.Context, per_page: int = 4):
+    def __init__(self, entries: typing.List[str], *, playlist: Playlist, ctx: discord.ext.commands.Context,
+                 per_page: int = 4):
         super().__init__(entries, per_page=per_page)
-        self.templates = ctx.templates
+        self.templates = ctx.bot.templates
+        self.playlist = playlist
+        self.author = ctx.author
 
     async def format_page(self, menu, page: typing.List[str]) -> discord.Embed:
-        offset = menu.current_page * self.per_page
         format = self.templates.playlistPaginator.copy()
-        for song in page:
-            format.add_field(name="%s {}".format(song.title) % song_emoji_conversion[urlparse(song.url).netloc],
-                             value="Created: `{0.created}`\nDuration: `{0.length}` seconds, Author: `{0.uploader}`".format(
+        format.title = format.title.format(str(self.author))
+        format.description = format.description.format(self.playlist.id)
+        if not page:
+            format.add_field(name="Take this lemon \U0001f34b",
+                             value="You have no songs in your playlist, go add some!")
+        for index, song in enumerate(page):
+            format.add_field(name="%s `{}.` {}".format(index+1, song["title"]) % song_emoji_conversion[urlparse(song["url"]).netloc],
+                             value="Created: `{0[created]}`\nDuration: `{0[length]}` seconds, Author: `{0[uploader]}`".format(
                                  song),
                              inline=False)
         return format
@@ -95,24 +124,6 @@ class NameValidator(discord.ext.commands.Converter):
         # if ctx.author.premium:
         # return textwrap.shorten(argument, 40)
         return textwrap.shorten(argument, 20)
-
-
-class PlaylistPaginator(discord.ext.menus.ListPageSource):
-    def __init__(self, entries: typing.List[dict], *, ctx: discord.ext.commands.Context, playlist: Playlist,
-                 per_page: int = 4):
-        super().__init__(entries, per_page=per_page)
-        self.templates = ctx.bot.templates
-        self.playlist = playlist
-
-    async def format_page(self, menu, page: typing.List[dict]) -> discord.Embed:
-        offset = menu.current_page * self.per_page
-        format = self.templates.playlistPaginator.copy()
-        format.title = format.title.format(self.playlist.name)
-        format.description = format.description.format(self.playlist.id)
-        for song in page:
-            format.add_field(name="%s {}".format(song["title"]) % song_emoji_conversion[urlparse(song["url"]).netloc],
-                             value="Created: {0[created]}, Duration: {0[length]}, Author: {0[uploader]}".format(song))
-        return format
 
 
 class PlaylistsPaginator(discord.ext.menus.ListPageSource):

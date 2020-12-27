@@ -1,13 +1,20 @@
-from utils.database import DJDiscordDatabaseManager
-from utils.constants import Templates
-import discord.ext.commands
 import datetime
-import rethinkdb
 import os
+
+import discord.ext.commands
+import rethinkdb
+
+from utils.constants import Templates
+from utils.database import DJDiscordDatabaseManager
+
 
 class DJDiscordContext(discord.ext.commands.Context):
     def __init__(self, *args: list, **kwargs: dict) -> None:
         super().__init__(*args, **kwargs)
+
+    @property
+    def voice_queue(self):
+        return self.bot.voice_queue
 
     async def wait_for(self, event: str, check, timeout=10):
         try:
@@ -24,6 +31,7 @@ class DJDiscord(discord.ext.commands.Bot):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.voice_queue = {}
         self.remove_command("help")
         for object in os.listdir("./commands"):
             if os.path.isfile(
@@ -36,7 +44,10 @@ class DJDiscord(discord.ext.commands.Bot):
 
     async def on_connect(self):
         rethinkdb.r.set_loop_type('asyncio')
-        self.connection = await rethinkdb.r.connect(db="djdiscord", host=os.environ["RETHINKDB_HOST"], port=os.environ["RETHINKDB_PORT"], user=os.environ["RETHINKDB_USER"], password=os.environ["RETHINKDB_PASS"])
+        self.connection = await rethinkdb.r.connect(db="djdiscord", host=os.environ["RETHINKDB_HOST"],
+                                                    port=os.environ["RETHINKDB_PORT"],
+                                                    user=os.environ["RETHINKDB_USER"],
+                                                    password=os.environ["RETHINKDB_PASS"])
 
     async def on_ready(self):
         print("DJDiscord has logged into Discord as %s\nTime: {}".format(datetime.datetime.now()) % str(self.user))

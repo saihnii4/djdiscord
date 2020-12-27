@@ -30,7 +30,8 @@ class Templates(metaclass=Template):
         url="https://media4.giphy.com/media/TqiwHbFBaZ4ti/giphy.gif")
     playlistChange = discord.Embed(title="Done!", description="Feel free to share this playlist with your friends!",
                                    color=0x3EFF8B)
-    playlistPaginator = discord.Embed(title="Songs in `{}`", description="Playlist ID: {}", color=0xE9B44C)
+    playlistPaginator = discord.Embed(title="Songs in **`{}`**'s playlist'", description="Playlist ID: {}",
+                                      color=0xE9B44C)
     playlistsPaginator = discord.Embed(title="Songs for `{}`", description="Total: {} playlists", color=0xF2DDA4)
 
 
@@ -62,6 +63,7 @@ class Song:
             "url": self.url,
         }
 
+
 class YoutubeLogger(object):
     def debug(self, _):
         pass
@@ -72,12 +74,22 @@ class YoutubeLogger(object):
     def error(self, _):
         pass
 
+
+# class RethinkDBEvaluationResult(discord.Enum):
+#     OK = 0
+#     WARNING = 1
+#     ERROR = 2
+
 @dataclass
 class Playlist:
-    id: str
-    name: str
+    id: int
     songs: list
     author: typing.Union[discord.Member, int, discord.User]
+    cover: str
+
+    async def delete_at(self, ctx: discord.ext.commands.Context, index: int):
+        await ctx.database.database.table("accounts").get(self.id).update(
+            {"songs": rethinkdb.r.row["songs"].delete_at(index - 1)}).run(ctx.database.connection)
 
     async def add_song(self, ctx: discord.ext.commands.Context, song: Song) -> None:
         await ctx.database.database.table("accounts").get(self.id).update(
