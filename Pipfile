@@ -15,6 +15,7 @@ python-dotenv = "*"
 flake8 = "*"
 autopep8 = "*"
 pynvim = "*"
+pytest = "*"
 
 [requires]
 python_version = "3.8"
