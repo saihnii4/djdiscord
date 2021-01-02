@@ -1,7 +1,8 @@
 import asyncio
-import unittest
-import pytest
 import time
+import unittest
+
+import pytest
 
 
 def _benchmark_function(function, *args, **kwargs):

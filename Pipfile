@@ -10,12 +10,16 @@ youtube-dl = "*"
 urllib3 = "*"
 "discord.ext.menus" = {git = "https://github.com/Rapptz/discord-ext-menus"}
 python-dotenv = "*"
+aiohttp = "*"
+requests = "*"
 
 [dev-packages]
 flake8 = "*"
 autopep8 = "*"
 pynvim = "*"
 pytest = "*"
+dpytest = "*"
+yapf = "*"
 
 [requires]
 python_version = "3.9"

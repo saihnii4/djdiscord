@@ -1,4 +1,4 @@
-from utils.constants import VoiceState
+from utils.voice import VoiceState
 from commands.playlist import start
 import discord.ext.commands
 import typing
@@ -26,7 +26,6 @@ async def join(ctx: discord.ext.commands.Context,
     if ctx.voice_state.voice:
         await ctx.voice_state.voice.move_to(target)
         return
-
     state.voice = await target.connect()
 
 def setup(bot: discord.ext.commands.Bot) -> None:

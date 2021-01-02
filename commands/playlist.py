@@ -12,6 +12,8 @@ from utils.converters import PlaylistConverter
 from utils.converters import PlaylistPaginator
 from utils.converters import SongConverter
 
+from commands.join import 
+
 
 @discord.ext.commands.group(name="playlist")
 async def playlist(
