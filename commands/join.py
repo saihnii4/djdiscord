@@ -1,10 +1,8 @@
 from utils.voice import VoiceState
-from commands.playlist import start
 import discord.ext.commands
 import typing
 
 @discord.ext.commands.command(name="join")
-@start.before_invoke
 async def join(ctx: discord.ext.commands.Context,
                *,
                channel: discord.VoiceChannel = None

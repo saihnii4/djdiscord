@@ -50,5 +50,7 @@ class CompatTests(unittest.TestCase):
     def test_regex(self):
         regex = re.compile(r"([A-Z])\w+")
         assert regex.match("Hello World")
-        assert regex.findall("And to all a Merry Christmas!") == ['A', 'M', 'C']
+        assert regex.findall("And to all a Merry Christmas!") == [
+            'A', 'M', 'C'
+        ]
         assert regex.sub("Python", "FooBar is cool") == "Python is cool"

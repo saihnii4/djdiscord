@@ -8,6 +8,7 @@ import discord.ext.commands
 import discord.ext.menus
 import youtube_dl
 
+from utils.constants import ydl_opts
 from utils.constants import Playlist
 from utils.constants import Song
 from utils.constants import YoutubeLogger
@@ -67,7 +68,7 @@ class SongConverter(discord.ext.commands.Converter):
         ):
             target = argument
 
-        with youtube_dl.YoutubeDL({"logger": YoutubeLogger()}) as ytdl:
+        with youtube_dl.YoutubeDL(ydl_opts) as ytdl:
             if data := ytdl.extract_info(target, download=False):
                 if "entries" in data:
                     return Song(
@@ -76,8 +77,7 @@ class SongConverter(discord.ext.commands.Converter):
                         data["entries"][0]["uploader"],
                         data["entries"][0]["title"],
                         data["entries"][0]["thumbnails"],
-                        datetime.datetime.strptime(data["entries"][0]["upload_date"], "%Y%m%d").astimezone().strftime(
-                            "%Y-%m-%d"),
+                        datetime.datetime.strptime(data["entries"][0]["upload_date"], "%Y%m%d").astimezone().strftime("%Y-%m-%d"),
                         data["entries"][0]["duration"],
                     )
 

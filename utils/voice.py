@@ -67,7 +67,7 @@ class VoiceState:
     def volume(self, value: float):
         self._volume = value
 
-    @propery
+    @property
     def is_playing(self):
         return self.voice and self.current
 

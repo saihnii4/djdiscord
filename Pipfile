@@ -12,6 +12,7 @@ urllib3 = "*"
 python-dotenv = "*"
 aiohttp = "*"
 requests = "*"
+async-timeout = "*"
 
 [dev-packages]
 flake8 = "*"

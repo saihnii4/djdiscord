@@ -1,18 +1,20 @@
 import time
+import rethinkdb
 import typing
 import uuid
+import urllib.parse
+import youtube_dl
 
 import discord
 import discord.ext.commands
 import discord.ext.menus
 
-from utils.constants import Playlist
+from utils.voice import VoiceState
+from utils.constants import Playlist, Song, ydl_opts
 from utils.converters import IndexConverter
 from utils.converters import PlaylistConverter
 from utils.converters import PlaylistPaginator
 from utils.converters import SongConverter
-
-from commands.join import 
 
 
 @discord.ext.commands.group(name="playlist")
@@ -38,8 +40,46 @@ async def start(
             "You need to be connected to a channel in order to start playing music"
         )
 
-    target = channel or ctx.author.voice.channel
+    if ctx.author.voice is None:
+        return await ctx.send(
+            "You have not joined a voice channel yet, therefore you cannot play music"
+        )
 
+    target = channel if channel is not None else ctx.author.voice.channel
+
+    state = ctx.voice_queue.get(ctx.guild.id)
+    if not state:
+        state = VoiceState(ctx.bot, ctx)
+        ctx.voice_queue[ctx.guild.id] = state
+
+    ctx.voice_state = state
+
+    if ctx.voice_state.voice:
+        await ctx.voice_state.voice.move_to(target)
+        return
+
+    state.voice = await target.connect()
+
+    song_iter = iter(playlist.songs)
+
+    def recurse_play(song: Song) -> None:
+        def handle_after(error) -> None:
+            if error is None:
+                try:
+                    return recurse_play(next(song_iter))
+                except StopIteration:
+                    return
+            raise error
+
+        if urllib.parse.urlparse(song["url"]).netloc == "www.youtube.com":
+            with youtube_dl.YoutubeDL(ydl_opts) as ytdl:
+                data = ytdl.extract_info(song["url"], download=False)
+
+                song["source"] = data["entries"][0]["formats"][0]["url"]
+
+        ctx.voice_queue[ctx.guild.id].voice.play(discord.FFmpegPCMAudio(song["source"]), after=handle_after)
+
+    recurse_play(next(song_iter))
 
 @playlist.command(name="delete")
 async def delete(ctx: discord.ext.commands.Context,
@@ -49,6 +89,7 @@ async def delete(ctx: discord.ext.commands.Context,
     playlist = await PlaylistConverter().convert(ctx, str(ctx.author.id))
     if len(playlist.songs) < indx:
         return await ctx.send("No such song exists at index %d" % indx)
+    
     await ctx.send("Deleted **`%s`** from your playlist" %
                    playlist.songs[indx - 1]["title"])
     return await playlist.delete_at(ctx, indx)
@@ -67,7 +108,8 @@ async def list(
         playlist = Playlist(query["id"], query["songs"], query["author"],
                             query["cover"])
     paginator = discord.ext.menus.MenuPages(source=PlaylistPaginator(
-        playlist.songs, ctx=ctx, playlist=playlist), clear_reactions_after=True)
+        playlist.songs, ctx=ctx, playlist=playlist),
+        clear_reactions_after=True)
     await paginator.start(ctx)
 
 
@@ -99,9 +141,11 @@ async def create(
         title="Almost there!", color=0xDA3E52
     ).add_field(
         name="Cover Art",
-        value="Now upload your cover art, if you don't want to upload anything, ignore this message for 10 seconds",
+        value=
+        "Now upload your cover art, if you don't want to upload anything, ignore this message for 10 seconds",
     ).set_image(
-        url="https://res.cloudinary.com/practicaldev/image/fetch/s--0TbCN_Xq--/c_limit%2Cf_auto%2Cfl_progressive%2Cq_66%2Cw_880/https://dev-to-uploads.s3.amazonaws.com/i/tb6tb1wvi7f00eqns3g0.gif"
+        url=
+        "https://res.cloudinary.com/practicaldev/image/fetch/s--0TbCN_Xq--/c_limit%2Cf_auto%2Cfl_progressive%2Cq_66%2Cw_880/https://dev-to-uploads.s3.amazonaws.com/i/tb6tb1wvi7f00eqns3g0.gif"
     ))
 
     response = await ctx.wait_for(
@@ -129,11 +173,13 @@ async def create(
     return await msg.edit(
         embed=discord.Embed(
             title="All done!",
-            description="Everything is clear! Begin adding songs to your playlist!",
+            description=
+            "Everything is clear! Begin adding songs to your playlist!",
             color=0xF2E94E).add_field(name="Playlist Code", value=playlist_id)
         # .add_field(name="Song Limit", value="%d" % 40 if ctx.author.premium else 20)
         .set_thumbnail(url=response.attachments[0].url).set_image(
-            url="https://i.pinimg.com/originals/b9/88/b7/b988b7c3e84e1f83ef9447157831b460.gif"
+            url=
+            "https://i.pinimg.com/originals/b9/88/b7/b988b7c3e84e1f83ef9447157831b460.gif"
         ))
 
 

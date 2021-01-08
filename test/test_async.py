@@ -75,7 +75,7 @@ class AsyncTests(unittest.TestCase):
 
         self.loop.run_until_complete(_test_wait())
 
-    def test_threads(self) -> None:  # New in Python 3.9, which is our target
+    def test_threads(self) -> None:
         def _blocking_sub_task() -> None:
             print("I like to block asynchronous tasks")
             time.sleep(5)

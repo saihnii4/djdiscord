@@ -74,6 +74,14 @@ class YoutubeLogger(object):
     def error(self, _):
         pass
 
+ydl_opts = {
+    'format': 'bestaudio/best',
+    'postprocessors': [{
+        'key': 'FFmpegExtractAudio',
+        'preferredcodec': 'opus',
+        'preferredquality': '192',
+    }],
+}
 
 # class RethinkDBEvaluationResult(discord.Enum):
 #     OK = 0

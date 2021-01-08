@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "09041c4b2daeb525363f241027a3ac138ef1ac831c998d47ec861ba959624246"
+            "sha256": "40df2348dcaccbf2da632486d2195807aff0109e418cfb4275b8282e005c8f2c"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -40,7 +40,7 @@
                 "sha256:0c3c816a028d47f659d6ff5c745cb2acf1f966da1fe5c19c77a70282b25f4c5f",
                 "sha256:4291ca197d287d274d0b6cb5d6f8f8f82d434ed288f962539ff18cc9012f9ea3"
             ],
-            "markers": "python_full_version >= '3.5.3'",
+            "index": "pypi",
             "version": "==3.0.1"
         },
         "attrs": {
@@ -254,11 +254,11 @@
         },
         "youtube-dl": {
             "hashes": [
-                "sha256:22ea4587d0d7480570002af5dd3dac47836688748fb9ec4fe6a92a08839774fe",
-                "sha256:c937430888669a90315f11fa3754961aa4b472c6e217950c64141ec112090db7"
+                "sha256:67cc185783ef828249bcc199317a207d19e1320857bb16e68d64ea97ad2793b3",
+                "sha256:7cedf2be0ac3920075a3197ab6dd41ff9b9d45d6232235d968328a20267ca28e"
             ],
             "index": "pypi",
-            "version": "==2020.12.26"
+            "version": "==2021.1.3"
         }
     },
     "develop": {
@@ -286,7 +286,7 @@
                 "sha256:0c3c816a028d47f659d6ff5c745cb2acf1f966da1fe5c19c77a70282b25f4c5f",
                 "sha256:4291ca197d287d274d0b6cb5d6f8f8f82d434ed288f962539ff18cc9012f9ea3"
             ],
-            "markers": "python_full_version >= '3.5.3'",
+            "index": "pypi",
             "version": "==3.0.1"
         },
         "attrs": {
