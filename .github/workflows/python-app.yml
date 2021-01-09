@@ -20,12 +20,14 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: 3.9
-    - name: Install dependencies
+    - name: Install Pip dependencies
+      run: |
+          python -m pip install --upgrade pip
+          pip install flake8 pytest
+    - name: Install Pipenv dependencies
       uses: VaultVulp/action-pipenv@v2.0.1
       with: 
         command: |
-          python -m pip install --upgrade pip
-          pip install flake8 pytest
           pipenv install
     - name: Lint with flake8
       run: |
