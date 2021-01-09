@@ -25,10 +25,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install flake8 pytest
     - name: Install Pipenv dependencies
-      uses: VaultVulp/action-pipenv@v2.0.1
-      with: 
-        command: |
-          pipenv install
+      uses: dschep/install-pipenv-action@v1
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
