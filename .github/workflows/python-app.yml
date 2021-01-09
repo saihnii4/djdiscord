@@ -26,7 +26,6 @@ jobs:
         pip install flake8 pytest
     - name: Install Pipenv
       uses: dschep/install-pipenv-action@v1
-        pipenv install
     - name: Test commit
       run: |
         pipenv install
