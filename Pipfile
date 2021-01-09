@@ -21,6 +21,8 @@ pynvim = "*"
 pytest = "*"
 dpytest = "*"
 yapf = "*"
+pytest-asyncio = "*"
+pytest-aiohttp = "*"
 
 [requires]
 python_version = "3.9"
