@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "0f48e4eacb4ff0085ef84ed1c18638e55f47df6025ca2dce9515c71db796178a"
+            "sha256": "4c21dec7f7943b91d61fc46f335d4eab098d400c963001237e5d4c34ba1045e8"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -129,6 +129,14 @@
                 "sha256:fc323ffcaeaed0e0a02bf4d117757b98aed530d9ed4531e3e15460124c106691"
             ],
             "version": "==3.0.4"
+        },
+        "discord-argparse": {
+            "hashes": [
+                "sha256:0bc4dfd47cf0048dad40525a623abb979fee506bbe0513071d0d82663183f849",
+                "sha256:ced9f9deb55c0ea779626f2a0b1ac7c64b0f38af140596dc98f959b4a511acc4"
+            ],
+            "index": "pypi",
+            "version": "==1.0.1"
         },
         "discord-ext-menus": {
             "git": "https://github.com/Rapptz/discord-ext-menus",

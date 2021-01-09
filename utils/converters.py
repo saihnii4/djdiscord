@@ -7,12 +7,20 @@ from urllib.parse import urlparse
 import discord.ext.commands
 import discord.ext.menus
 import youtube_dl
+import discord_argparse
 
 from utils.constants import ydl_opts
 from utils.constants import Playlist
 from utils.constants import Song
-from utils.constants import YoutubeLogger
 from utils.constants import song_emoji_conversion
+
+ArgumentConverter = discord_argparse.ArgumentConverter(
+    dj_role_id=discord_argparse.RequiredArgument(
+        int, doc="DJ Role ID that controls voice channel operations."),
+    announcement=discord_argparse.RequiredArgument(
+        bool,
+        doc="Announcement channel ID for DJ Discord announcments",
+    ))
 
 
 class IndexConverter(discord.ext.commands.Converter):
@@ -27,6 +35,7 @@ class IndexConverter(discord.ext.commands.Converter):
 
         return argument
 
+
 class VolumeConverter(discord.ext.commands.Converter):
     async def convert(self, ctx: discord.ext.commands.Context, argument: str):
         try:
@@ -38,6 +47,7 @@ class VolumeConverter(discord.ext.commands.Converter):
             return
 
         return argument
+
 
 class PlaylistConverter(discord.ext.commands.Converter):
     async def convert(self, ctx: discord.ext.commands.Context,

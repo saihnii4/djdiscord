@@ -19,7 +19,11 @@ class VoiceState:
         self.song_iter = iter(self.playlist.songs)
         self.current = next(self.song_iter)
         self.voice = None
-        self.next = next(self.song_iter)
+
+        try:
+            self.next = next(self.song_iter)
+        except StopIteration:
+            self.next = None
 
         self._loop = False
         self.skip_votes = set()

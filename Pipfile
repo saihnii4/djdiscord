@@ -13,6 +13,7 @@ python-dotenv = "*"
 aiohttp = "*"
 requests = "*"
 async-timeout = "*"
+discord-argparse = "*"
 
 [dev-packages]
 flake8 = "*"

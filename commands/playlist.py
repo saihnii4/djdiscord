@@ -119,9 +119,9 @@ async def start(
         def handle_after(error) -> None:
             if error is None:
                 try:
+                    ctx.voice_state.shift()
                     if ctx.voice_state.current is None:
                         raise StopIteration()
-                    ctx.voice_state.shift()
                     return recurse_play(ctx.voice_state.current)
                 except StopIteration:
                     ctx.bot.loop.create_task(

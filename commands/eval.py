@@ -68,7 +68,7 @@ class EvaluationParser(discord.ext.commands.Converter):
             result.result = execution_output
         except Exception as error:
             result.error = error
-        
+
         return result
 
 @discord.ext.commands.command(name="eval")
