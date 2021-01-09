@@ -1,55 +1,36 @@
 import asyncio
-import itertools
-import random
+from ssl import get_protocol_name
 import discord.ext.commands
-from async_timeout import timeout
+
+from utils.constants import Playlist
 
 
 class VoiceError(Exception):
     pass
 
 
-class VoiceQueue(asyncio.Queue):
-    def __getitem__(self, item):
-        if isinstance(item, slice):
-            return list(
-                itertools.islice(self._queue, item.start, item.stop,
-                                 item.step))
-        else:
-            return self._queue[item]
-
-    def __iter__(self):
-        return self._queue.__iter__()
-
-    def __len__(self):
-        return self.qsize()
-
-    def clear(self):
-        self._queue.clear()
-
-    def shuffle(self):
-        random.shuffle(self._queue)
-
-
 class VoiceState:
     def __init__(self, bot: discord.ext.commands.Bot,
-                 ctx: discord.ext.commands.Context):
+                 ctx: discord.ext.commands.Context, playlist: Playlist):
         self.bot = bot
         self._ctx = ctx
+        self.playlist = playlist
 
-        self.current = None
+        self.song_iter = iter(self.playlist.songs)
+        self.current = next(self.song_iter)
         self.voice = None
-        self.next = asyncio.Event()
-        self.songs = VoiceQueue()
+        self.next = next(self.song_iter)
 
         self._loop = False
-        self._volume = 0.5
         self.skip_votes = set()
 
-        self.audio_player = bot.loop.create_task(self.audio_player_task())
-
     def __del__(self):
-        self.audio_player.cancel()
+        self.song_iter = None
+        self.current = None
+        self.voice = None
+        self.next = None
+
+        del self._ctx.voice_queue[self._ctx.guild.id]
 
     @property
     def loop(self):
@@ -60,54 +41,29 @@ class VoiceState:
         self._loop = value
 
     @property
-    def volume(self):
-        return self._volume
-
-    @volume.setter
-    def volume(self, value: float):
-        self._volume = value
-
-    @property
     def is_playing(self):
         return self.voice and self.current
 
-    async def audio_player_task(self):
-        while True:
-            self.next.clear()
+    def shift(self) -> None:
+        if self._loop:
+            self.next = self.current
+            return
 
-            if not self.loop:
-                # Try to get the next song within 3 minutes.
-                # If no song will be added to the queue in time,
-                # the player will disconnect due to performance
-                # reasons.
-                try:
-                    async with timeout(180):  # 3 minutes
-                        self.current = await self.songs.get()
-                except asyncio.TimeoutError:
-                    self.bot.loop.create_task(self.stop())
-                    return
+        self.current = self.next
 
-            self.current.source.volume = self._volume
-            self.voice.play(self.current.source, after=self.play_next_song)
-            await self.current.source.channel.send(
-                embed=self.current.create_embed())
-
-            await self.next.wait()
-
-    def play_next_song(self, error=None):
-        if error:
-            raise VoiceError(str(error))
-
-        self.next.set()
+        try:
+            self.next = next(self.song_iter)
+        except StopIteration:
+            self.next = None
 
     def skip(self):
-        self.skip_votes.clear()
-
         if self.is_playing:
             self.voice.stop()
 
     async def stop(self):
-        self.songs.clear()
+        self.song_iter = None
+        self.current = None
+        self.next = None
 
         if self.voice:
             await self.voice.disconnect()

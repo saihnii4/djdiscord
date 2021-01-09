@@ -1,8 +1,6 @@
 import time
-import rethinkdb
 import typing
 import uuid
-import urllib.parse
 import youtube_dl
 
 import discord
@@ -15,6 +13,7 @@ from utils.converters import IndexConverter
 from utils.converters import PlaylistConverter
 from utils.converters import PlaylistPaginator
 from utils.converters import SongConverter
+from utils.converters import VolumeConverter
 
 
 @discord.ext.commands.group(name="playlist")
@@ -31,6 +30,67 @@ async def playlist(
         return await ctx.send(embed=notification)
 
 
+@playlist.command(name="volume")
+async def volume(ctx: discord.ext.commands.Context,
+                 volume: VolumeConverter) -> None:
+    if ctx.author.voice is None:
+        return await ctx.send(
+            "You need to be connected to a channel in order to change the volume"
+        )
+
+    state = ctx.voice_queue.get(ctx.guild.id)
+
+    state.voice.source.volume = volume
+
+
+@playlist.command(name="skip")
+async def skip(
+        ctx: discord.ext.commands.Context) -> typing.Optional[discord.Message]:
+    if ctx.author.voice is None:
+        return await ctx.send(
+            "You need to be connected to a channel in order to skip music")
+
+    state = ctx.voice_queue.get(ctx.guild.id)
+
+    state.skip()
+
+    return await ctx.send(
+        embed=discord.Embed(title="Skipped song!", color=0xA1D2CE))
+
+
+@playlist.command(name="loop")
+async def loop(
+        ctx: discord.ext.commands.Context) -> typing.Optional[discord.Message]:
+    if ctx.author.voice is None:
+        return await ctx.send(
+            "You need to be connected to a channel in order to skip music")
+
+    state = ctx.voice_queue.get(ctx.guild.id)
+
+    if state._loop:
+        state._loop = False
+        return
+
+    state._loop = True
+
+
+@playlist.command(name="stop", aliases=["end", "interrupt", "sigint"])
+async def stop(
+        ctx: discord.ext.commands.Context) -> typing.Optional[discord.Message]:
+    if ctx.author.voice is None:
+        return await ctx.send(
+            "You need to be connected to a channel in order to stop music")
+
+    state = ctx.voice_queue.get(ctx.guild.id)
+
+    await state.stop()
+
+    return await ctx.send(embed=discord.Embed(
+        title=
+        "Disconnected from the voice channel and stopped playing",
+        color=0xA1D2CE))
+
+
 @playlist.command(name="start", aliases=["execute", "run"])
 async def start(
         ctx: discord.ext.commands.Context, playlist: PlaylistConverter, *,
@@ -40,16 +100,11 @@ async def start(
             "You need to be connected to a channel in order to start playing music"
         )
 
-    if ctx.author.voice is None:
-        return await ctx.send(
-            "You have not joined a voice channel yet, therefore you cannot play music"
-        )
-
     target = channel if channel is not None else ctx.author.voice.channel
 
     state = ctx.voice_queue.get(ctx.guild.id)
     if not state:
-        state = VoiceState(ctx.bot, ctx)
+        state = VoiceState(ctx.bot, ctx, playlist)
         ctx.voice_queue[ctx.guild.id] = state
 
     ctx.voice_state = state
@@ -60,26 +115,45 @@ async def start(
 
     state.voice = await target.connect()
 
-    song_iter = iter(playlist.songs)
-
     def recurse_play(song: Song) -> None:
         def handle_after(error) -> None:
             if error is None:
                 try:
-                    return recurse_play(next(song_iter))
+                    if ctx.voice_state.current is None:
+                        raise StopIteration()
+                    ctx.voice_state.shift()
+                    return recurse_play(ctx.voice_state.current)
                 except StopIteration:
+                    ctx.bot.loop.create_task(
+                        ctx.send(embed=discord.Embed(
+                            title="Finished playing this playlist!",
+                            color=0xA1D2CE)))
+                    ctx.bot.loop.create_task(
+                        ctx.voice_queue[ctx.guild.id].stop())
+                    del state
                     return
             raise error
 
-        if urllib.parse.urlparse(song["url"]).netloc == "www.youtube.com":
-            with youtube_dl.YoutubeDL(ydl_opts) as ytdl:
-                data = ytdl.extract_info(song["url"], download=False)
+        with youtube_dl.YoutubeDL(ydl_opts) as ytdl:
+            data = ytdl.extract_info(song["url"], download=False)
+            song["source"] = data["formats"][0]["url"]
 
-                song["source"] = data["entries"][0]["formats"][0]["url"]
+        ctx.bot.loop.create_task(
+            ctx.send(embed=discord.Embed(
+                title="Current song in queue",
+                description=
+                "```css\n{} - {}\n\nCreated at {} - {} seconds long\n```".
+                format(song["title"], song["uploader"], song["created"],
+                       song["length"]),
+                color=0xA1D2CE).set_thumbnail(
+                    url=song["thumbnails"][-1]["url"])))
 
-        ctx.voice_queue[ctx.guild.id].voice.play(discord.FFmpegPCMAudio(song["source"]), after=handle_after)
+        ctx.voice_queue[ctx.guild.id].voice.play(discord.PCMVolumeTransformer(
+            discord.FFmpegPCMAudio(song["source"]), volume=1),
+                                                 after=handle_after)
 
-    recurse_play(next(song_iter))
+    recurse_play(ctx.voice_state.current)
+
 
 @playlist.command(name="delete")
 async def delete(ctx: discord.ext.commands.Context,
@@ -89,7 +163,7 @@ async def delete(ctx: discord.ext.commands.Context,
     playlist = await PlaylistConverter().convert(ctx, str(ctx.author.id))
     if len(playlist.songs) < indx:
         return await ctx.send("No such song exists at index %d" % indx)
-    
+
     await ctx.send("Deleted **`%s`** from your playlist" %
                    playlist.songs[indx - 1]["title"])
     return await playlist.delete_at(ctx, indx)
@@ -109,7 +183,7 @@ async def list(
                             query["cover"])
     paginator = discord.ext.menus.MenuPages(source=PlaylistPaginator(
         playlist.songs, ctx=ctx, playlist=playlist),
-        clear_reactions_after=True)
+                                            clear_reactions_after=True)
     await paginator.start(ctx)
 
 
@@ -134,6 +208,7 @@ async def create(
         "id": playlist_id,
         "author": ctx.author.id,
         "songs": [],
+        "upvotes": 0,
         "cover": None,
     }).run(ctx.database.connection)
 

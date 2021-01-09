@@ -32,7 +32,6 @@ class DJDiscord(discord.ext.commands.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.voice_queue = {}
-        self.remove_command("help")
         for object in os.listdir("./commands"):
             if os.path.isfile(
                 "./commands/%s" % object
