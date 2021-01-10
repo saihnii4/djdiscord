@@ -4,8 +4,10 @@ import textwrap
 import typing
 from urllib.parse import urlparse
 
+import discord
 import discord.ext.commands
 import discord.ext.menus
+import rethinkdb
 import youtube_dl
 import discord_argparse
 
@@ -15,12 +17,14 @@ from utils.constants import Song
 from utils.constants import song_emoji_conversion
 
 ArgumentConverter = discord_argparse.ArgumentConverter(
-    dj_role_id=discord_argparse.RequiredArgument(
-        int, doc="DJ Role ID that controls voice channel operations."),
-    announcement=discord_argparse.RequiredArgument(
-        bool,
+    dj_role=discord_argparse.OptionalArgument(
+        discord.Role,
+        doc="DJ Role ID that controls voice channel operations.",
+        default=None),
+    announcement=discord_argparse.OptionalArgument(
+        discord.TextChannel,
         doc="Announcement channel ID for DJ Discord announcments",
-    ))
+        default=None))
 
 
 class IndexConverter(discord.ext.commands.Converter):
@@ -69,8 +73,8 @@ class PlaylistConverter(discord.ext.commands.Converter):
         ).match(argument) is not None):
             playlist = (
                 await
-                ctx.database.database.table("accounts").get(argument).run(
-                    ctx.database.connection))
+                rethinkdb.r.db("djdiscord").table("accounts").get(argument).run(
+                    ctx.database.rdbconn))
             return Playlist(playlist["id"], playlist["songs"],
                             playlist["author"], playlist["cover"])
 

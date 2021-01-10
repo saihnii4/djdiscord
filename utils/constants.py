@@ -96,10 +96,10 @@ class Playlist:
     cover: str
 
     async def delete_at(self, ctx: discord.ext.commands.Context, index: int):
-        await ctx.database.database.table("accounts").get(self.id).update(
-            {"songs": rethinkdb.r.row["songs"].delete_at(index - 1)}).run(ctx.database.connection)
+        await rethinkdb.r.database("djdiscord").table("accounts").get(self.id).update(
+            {"songs": rethinkdb.r.row["songs"].delete_at(index - 1)}).run(ctx.database.rdbconn)
 
     async def add_song(self, ctx: discord.ext.commands.Context, song: Song) -> None:
-        await ctx.database.database.table("accounts").get(self.id).update(
+        await rethinkdb.r.database("djdiscord").table("accounts").get(self.id).update(
             {"songs": rethinkdb.r.row["songs"].append(song.json)}
-        ).run(ctx.database.connection)
+        ).run(ctx.database.rdbconn)

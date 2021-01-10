@@ -210,7 +210,7 @@ async def create(
         "songs": [],
         "upvotes": 0,
         "cover": None,
-    }).run(ctx.database.connection)
+    }).run(ctx.database.rdbconn)
 
     msg = await ctx.send(embed=discord.Embed(
         title="Almost there!", color=0xDA3E52
@@ -236,14 +236,14 @@ async def create(
             "You didn't send an attachment to set as your cover art, so we stopped listening"
         )
 
-    await ctx.database.database.table("accounts").filter({
+    await rethinkdb.r.database("djdiscord").table("accounts").filter({
         "id":
         playlist_id,
         "author":
         ctx.author.id
     }).update({
         "cover": response.attachments[0].url
-    }).run(ctx.database.connection)
+    }).run(ctx.database.rdbconn)
 
     return await msg.edit(
         embed=discord.Embed(
