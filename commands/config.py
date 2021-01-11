@@ -27,8 +27,8 @@ async def config(
 
         if value is not None:
             await ctx.database.psqlconn.execute(
-                """UPDATE configuration SET {}=$1 WHERE ID=$2;""".format(key), value.id if value is not None else value,
-                ctx.guild.id)
+                """UPDATE configuration SET {}=$1 WHERE ID=$2;""".format(key),
+                value.id if value is not None else value, ctx.guild.id)
     return await ctx.send(args)
 
 

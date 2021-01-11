@@ -63,18 +63,16 @@ class PlaylistConverter(discord.ext.commands.Converter):
             return Playlist(playlist["id"], playlist["songs"],
                             playlist["author"], playlist["cover"])
         except Exception as exc:
-            if isinstance(exc, discord.ext.commands.MemberNotFound):
-                pass
-            if isinstance(exc, IndexError):
+            if isinstance(exc,
+                          discord.ext.commands.MemberNotFound) or isinstance(
+                              exc, IndexError):
                 return
 
         if (re.compile(
                 "^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$"
         ).match(argument) is not None):
-            playlist = (
-                await
-                rethinkdb.r.db("djdiscord").table("accounts").get(argument).run(
-                    ctx.database.rdbconn))
+            playlist = (await rethinkdb.r.db("djdiscord").table(
+                "accounts").get(argument).run(ctx.database.rdbconn))
             return Playlist(playlist["id"], playlist["songs"],
                             playlist["author"], playlist["cover"])
 
@@ -168,6 +166,28 @@ class NameValidator(discord.ext.commands.Converter):
         # if ctx.author.premium:
         # return textwrap.shorten(argument, 40)
         return textwrap.shorten(argument, 20)
+
+
+class VoicePrompt(discord.ext.menus.Menu):
+    def __init__(self, message: str) -> None:
+        super().__init__(timeout=5.0, delete_message_after=True)
+        self.msg = message
+        self.voted = 0
+
+    async def send_initial_message(self, ctx, channel):
+        return await channel.send(self.msg)
+
+    @discord.ext.menus.button("👍")
+    async def vote_inc(self, payload) -> None:
+        self.voted += 1
+
+    @discord.ext.menus.button("👎")
+    async def vote_dec(self, payload) -> None:
+        self.voted -= 1
+
+    async def prompt(self, ctx: discord.ext.commands.Context) -> None:
+        await self.start(ctx, wait=True)
+        return self.voted
 
 
 class PlaylistsPaginator(discord.ext.menus.ListPageSource):

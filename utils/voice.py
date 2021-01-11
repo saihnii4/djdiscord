@@ -65,10 +65,6 @@ class VoiceState:
             self.voice.stop()
 
     async def stop(self):
-        self.song_iter = None
-        self.current = None
-        self.next = None
-
         if self.voice:
             await self.voice.disconnect()
-            self.voice = None
+            del self

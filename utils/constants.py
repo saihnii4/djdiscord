@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from urllib.parse import urlparse
 
 import discord.ext.commands
-import discord.ext.menus
 import rethinkdb
 
 song_emoji_conversion = {
@@ -96,10 +95,10 @@ class Playlist:
     cover: str
 
     async def delete_at(self, ctx: discord.ext.commands.Context, index: int):
-        await rethinkdb.r.database("djdiscord").table("accounts").get(self.id).update(
+        await rethinkdb.r.table("accounts").get(self.id).update(
             {"songs": rethinkdb.r.row["songs"].delete_at(index - 1)}).run(ctx.database.rdbconn)
 
     async def add_song(self, ctx: discord.ext.commands.Context, song: Song) -> None:
-        await rethinkdb.r.database("djdiscord").table("accounts").get(self.id).update(
+        await rethinkdb.r.table("accounts").get(self.id).update(
             {"songs": rethinkdb.r.row["songs"].append(song.json)}
         ).run(ctx.database.rdbconn)

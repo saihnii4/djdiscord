@@ -4,6 +4,7 @@ import os
 import discord.ext.commands
 import rethinkdb
 
+import discord
 import asyncpg
 from utils.constants import Templates
 from utils.database import DJDiscordDatabaseManager
@@ -16,6 +17,16 @@ class DJDiscordContext(discord.ext.commands.Context):
     @property
     def voice_queue(self):
         return self.bot.voice_queue
+
+    @property
+    async def dj(self):
+        role_id = await self.database.psqlconn.fetch(
+            """SELECT (dj_role) FROM configuration WHERE id=$1""",
+            self.guild.id)
+
+        role = discord.utils.get(self.guild.roles, id=role_id)
+
+        return role in self.author.roles
 
     async def wait_for(self, event: str, check, timeout=10):
         try:
@@ -46,8 +57,8 @@ class DJDiscord(discord.ext.commands.Bot):
             db="djdiscord",
             host=os.environ["RETHINKDB_HOST"],
             port=os.environ["RETHINKDB_PORT"],
-            user=os.environ["RETHINKDB_USER"],
-            password=os.environ["RETHINKDB_PASS"])
+            user=os.environ["RETHINKDB_USERNAME"],
+            password=os.environ["RETHINKDB_PASSWORD"])
         self.psqlconn = await asyncpg.connect(
             user=os.environ["POSTGRESQL_USER"],
             password=os.environ["POSTGRESQL_PASS"],

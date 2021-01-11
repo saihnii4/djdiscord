@@ -8,4 +8,4 @@ class DJDiscordDatabaseManager:
     async def get(self, **kwargs) -> list:
         """**`[coroutine]`** get -> Fetch accounts that fit a keyword argument"""
 
-        return [obj async for obj in await rethinkdb.r.database("djdiscord").table("accounts").filter(kwargs).run(self.rdbconn)]
+        return [obj async for obj in await rethinkdb.r.table("accounts").filter(kwargs).run(self.rdbconn)]

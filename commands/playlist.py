@@ -7,8 +7,9 @@ import discord
 import discord.ext.commands
 import discord.ext.menus
 
-from utils.voice import VoiceState
+from utils.voice import VoiceError, VoiceState
 from utils.constants import Playlist, Song, ydl_opts
+from utils.converters import VoicePrompt
 from utils.converters import IndexConverter
 from utils.converters import PlaylistConverter
 from utils.converters import PlaylistPaginator
@@ -83,22 +84,29 @@ async def stop(
 
     state = ctx.voice_queue.get(ctx.guild.id)
 
-    await state.stop()
+    if len(state.voice.channel.members) <= 3:
+        await ctx.send(embed=discord.Embed(
+            title="Disconnected from the voice channel and stopped playing",
+            color=0xA1D2CE))
+        return await state.stop()
 
-    return await ctx.send(embed=discord.Embed(
-        title=
-        "Disconnected from the voice channel and stopped playing",
-        color=0xA1D2CE))
+    if len(state.voice.channel.members) >= 3 and await ctx.dj:
+        vote_count = await VoicePrompt("Stop the current song?").prompt(ctx)
+        if vote_count >= 1:
+            await state.stop()
 
 
 @playlist.command(name="start", aliases=["execute", "run"])
-async def start(
+async def execute(
         ctx: discord.ext.commands.Context, playlist: PlaylistConverter, *,
-        channel: discord.VoiceChannel) -> typing.Optional[discord.Message]:
+        channel: discord.VoiceChannel = None) -> typing.Optional[discord.Message]:
     if ctx.author.voice is None:
         return await ctx.send(
             "You need to be connected to a channel in order to start playing music"
         )
+
+    if channel is None:
+        channel = ctx.author.voice.channel
 
     target = channel if channel is not None else ctx.author.voice.channel
 
@@ -122,16 +130,20 @@ async def start(
                     ctx.voice_state.shift()
                     if ctx.voice_state.current is None:
                         raise StopIteration()
+                    if ctx.voice_state.voice is None:
+                        raise VoiceError()
                     return recurse_play(ctx.voice_state.current)
-                except StopIteration:
-                    ctx.bot.loop.create_task(
-                        ctx.send(embed=discord.Embed(
-                            title="Finished playing this playlist!",
-                            color=0xA1D2CE)))
-                    ctx.bot.loop.create_task(
-                        ctx.voice_queue[ctx.guild.id].stop())
-                    del state
-                    return
+                except Exception as error:
+                    if isinstance(error, StopIteration):
+                        ctx.bot.loop.create_task(
+                            ctx.send(embed=discord.Embed(
+                                title="Finished playing this playlist!",
+                                color=0xA1D2CE)))
+                        ctx.bot.loop.create_task(
+                            ctx.voice_queue[ctx.guild.id].stop())
+                        del ctx.voice_queue[ctx.guild.id]
+                        return
+
             raise error
 
         with youtube_dl.YoutubeDL(ydl_opts) as ytdl:
