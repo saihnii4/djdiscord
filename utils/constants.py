@@ -2,6 +2,7 @@ import datetime
 import typing
 from dataclasses import dataclass
 from urllib.parse import urlparse
+from __future__ import annotations # Py 3.10
 
 import discord.ext.commands
 import rethinkdb
@@ -64,13 +65,16 @@ class Song:
 
 
 class YoutubeLogger(object):
-    def debug(self, _):
+    @staticmethod
+    def debug(_):
         pass
 
-    def warning(self, _):
+    @staticmethod
+    def warning(_):
         pass
 
-    def error(self, _):
+    @staticmethod
+    def error(_):
         pass
 
 ydl_opts = {
@@ -82,10 +86,108 @@ ydl_opts = {
     }],
 }
 
-# class RethinkDBEvaluationResult(discord.Enum):
-#     OK = 0
-#     WARNING = 1
-#     ERROR = 2
+class Evaluation:
+    pass
+
+class DatabaseEvalResults:
+    OK = 0
+    WARNING = 1
+    ERROR = 2
+
+@dataclass
+class DatabaseConfigChange:
+    new_val: typing.Optional[dict]
+    old_val: typing.Optional[dict]
+
+    @staticmethod
+    def from_raw(_raw: typing.List[dict]) -> typing.Iterator[DatabaseConfigChange]:
+        for change in _raw:
+            yield DatabaseConfigChange(change.get("new_val"), change.get("old_val"))
+
+@dataclass
+class DatabaseEvaluation:
+    config_changes: typing.Iterator[DatabaseConfigChange]
+    dbs_dropped: typing.Optional[int]
+    tables_dropped: typing.Optional[int]
+    dbs_created: typing.Optional[int]
+
+    @staticmethod
+    def from_dict(_dict: dict) -> DatabaseEvaluation:
+        dbs_dropped = None
+        dbs_created = None
+        tables_dropped = None
+
+        raw_config_changes = _dict["config_changes"]
+
+        if _dict.get("dbs_dropped") is not None:
+            dbs_dropped = _dict.get("dbs_dropped")
+        
+        if _dict.get("dbs_created") is not None:
+            dbs_created = _dict.get("dbs_created")
+
+        if _dict.get("tables_dropped") is not None:
+            tables_dropped = _dict.get("tables_dropped")
+
+        config_changes = DatabaseConfigChange.from_raw(raw_config_changes)
+            
+        return DatabaseEvaluation(config_changes, dbs_dropped, tables_dropped, dbs_created)
+
+
+@dataclass
+class TableEvaluation:
+    opcode: int
+    config_changes: typing.Iterator[DatabaseConfigChange]
+    
+    @staticmethod
+    def from_dict(_dict: dict) -> TableEvaluation:
+        if _dict.get("errors"):
+            opcode = DatabaseEvalResults.ERROR
+        elif _dict.get("warnings"):
+            opcode = DatabaseEvalResults.WARNING
+        else:
+            opcode = DatabaseEvalResults.OK
+
+        raw_config_changes = _dict["config_changes"]
+
+        config_changes = DatabaseConfigChange.from_raw(raw_config_changes)
+
+        return TableEvaluation(opcode, config_changes)
+
+@dataclass
+class DocumentEvaluation:
+    opcode: int
+    errors: typing.Optional[list]
+    warnings: typing.Optional[list]
+    changed: int
+    replaced: int
+    inserted: int
+    skipped: int
+    unchanged: int
+    deleted: int
+
+    @staticmethod
+    def from_dict(_dict: dict) -> DocumentEvaluation:
+        changed = _dict.get("changed")
+        replaced = _dict["replaced"]
+        inserted = _dict["inserted"]
+        skipped = _dict["skipped"]
+        changed = _dict["changed"]
+        unchanged = _dict["unchanged"]
+        deleted = _dict["deleted"]
+
+        errors = None
+        warnings = None
+
+        if _errors := _dict.get("errors"):
+            opcode = DatabaseEvalResults.ERROR
+            errors = _errors
+        elif _warnings := _dict.get("warnings"):
+            opcode = DatabaseEvalResults.WARNING
+            warnings = _warnings
+        else:
+            opcode = DatabaseEvalResults.OK
+
+        return DocumentEvaluation(opcode, errors, warnings, changed, replaced, inserted, skipped, unchanged, deleted)
 
 @dataclass
 class Playlist:
