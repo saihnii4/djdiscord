@@ -1,25 +1,26 @@
-import datetime
+from __future__ import annotations
+
 import os
 
+import asyncpg
+import discord
 import discord.ext.commands
 import rethinkdb
 
-import discord
-import asyncpg
 from utils.constants import Templates
 from utils.database import DJDiscordDatabaseManager
 
 
 class DJDiscordContext(discord.ext.commands.Context):
-    def __init__(self, *args: list, **kwargs: dict) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self: DJDiscordContext, **kwargs: dict) -> None:
+        super().__init__(**kwargs)
 
     @property
-    def voice_queue(self):
+    def voice_queue(self: DJDiscordContext) -> dict:
         return self.bot.voice_queue
 
     @property
-    async def dj(self):
+    async def dj(self: DJDiscordContext):
         role_id = await self.database.psqlconn.fetch(
             """SELECT (dj_role) FROM configuration WHERE id=$1""",
             self.guild.id)
@@ -28,7 +29,7 @@ class DJDiscordContext(discord.ext.commands.Context):
 
         return role in self.author.roles
 
-    async def wait_for(self, event: str, check, timeout=10):
+    async def wait_for(self: DJDiscordContext, event: str, check, timeout=10):
         try:
             return await self.bot.wait_for(event, check=check, timeout=timeout)
         except Exception:
@@ -36,7 +37,7 @@ class DJDiscordContext(discord.ext.commands.Context):
 
     @property
     def database(
-            self: discord.ext.commands.Context) -> DJDiscordDatabaseManager:
+            self: DJDiscordContext) -> DJDiscordDatabaseManager:
         return DJDiscordDatabaseManager(self.bot.rdbconn, self.bot.psqlconn)
 
 
@@ -60,15 +61,14 @@ class DJDiscord(discord.ext.commands.Bot):
             user=os.environ["RETHINKDB_USERNAME"],
             password=os.environ["RETHINKDB_PASSWORD"])
         self.psqlconn = await asyncpg.connect(
-            user=os.environ["POSTGRESQL_USER"],
-            password=os.environ["POSTGRESQL_PASS"],
+            user=os.environ["POSTGRESQL_USERNAME"],
+            password=os.environ["POSTGRESQL_PASSWORD"],
             database="djdiscord_config",
             host=os.environ["POSTGRESQL_HOST"],
             port=os.environ["POSTGRESQL_PORT"])
 
     async def on_ready(self):
-        print("DJDiscord has logged into Discord as %s\nTime: {}".format(
-            datetime.datetime.now()) % str(self.user))
+        print("Ready!")
 
     async def process_commands(self: discord.ext.commands.Bot,
                                message: discord.Message) -> None:

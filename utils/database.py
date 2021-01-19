@@ -1,38 +1,63 @@
-from utils.constants import TableEvaluation
-from utils.constants import DatabaseEvaluation
-from utils.constants import DocumentEvaluation
-import rethinkdb
-import asyncpg
+import datetime
 import typing
 
+import asyncpg
+import rethinkdb
+import rethinkdb.ast
+import rethinkdb.net
+
+from utils.constants import AfterCogInvoke
+from utils.constants import AfterCommandInvoke
+from utils.constants import BeforeCogInvoke
+from utils.constants import BeforeCommandInvoke
+from utils.constants import DatabaseEvaluation
+from utils.constants import DocumentEvaluation
+from utils.constants import TableEvaluation
+
+
 class DJDiscordDatabaseManager:
-    def __init__(self, rdbconn: rethinkdb.net.Connection, psqlconn: asyncpg.Connection) -> None:
+    def __init__(self, rdbconn: rethinkdb.net.Connection,
+                 psqlconn: asyncpg.Connection) -> None:
         self.rdbconn = rdbconn
         self.psqlconn = psqlconn
 
-    async def _rethinkdbExecute(self, query) -> typing.Union[TableEvaluation, DatabaseEvaluation, DocumentEvaluation, dict, list]:
+    async def _rethinkdb_execute(
+            self, query
+    ) -> typing.Union[TableEvaluation, DatabaseEvaluation, DocumentEvaluation,
+                      dict, list]:
         result = await query.run(self.rdbconn)
-        if isinstance(query, (rethinkdb.ast.TableCreate, rethinkdb.ast.TableDrop)):
+
+        if isinstance(query,
+                      (rethinkdb.ast.TableCreate, rethinkdb.ast.TableDrop)):
             return TableEvaluation.from_dict(result)
 
-        if isinstance(query, (rethinkdb.ast.DbDrop, rethinkdb.ast.DbDrop)):
+        if isinstance(query, (rethinkdb.ast.DbDrop, rethinkdb.ast.DbCreate)):
             return DatabaseEvaluation.from_dict(result)
 
-        if isinstance(query, (rethinkdb.ast.Delete, rethinkdb.ast.Update, rethinkdb.ast.Insert)):
+        if isinstance(query, (rethinkdb.ast.Delete, rethinkdb.ast.Update,
+                              rethinkdb.ast.Insert)):
             return DocumentEvaluation.from_dict(result)
 
         return result
 
-    async def _psqlExecute(self, query, *args, **kwargs) -> None:
-        await self.psqlconn.execute(query, *args, **kwargs)
+    async def _psql_execute(self, query, *args, **kwargs) -> str:
+        return await self.psqlconn.execute(query, *args, **kwargs)
 
     async def run(self, query, *args, **kwargs):
         if isinstance(query, str):
-            return await self._psqlExecute(query, *args, **kwargs)
+            return await self._psql_execute(query, *args, **kwargs)
 
-        return await self._rethinkdbExecute(query)
+        return await self._rethinkdb_execute(query)
+
+    async def log(self, op: typing.Union[BeforeCogInvoke, AfterCogInvoke, BeforeCommandInvoke, AfterCommandInvoke],
+                  info) -> DocumentEvaluation:
+        return await self.run(rethinkdb.r.db("djdiscord").table("logs").insert(
+            {"op": op, "info": info, "logged_at": datetime.datetime.now()}))
 
     async def get(self, **kwargs) -> list:
         """**`[coroutine]`** get -> Fetch accounts that fit a keyword argument"""
 
-        return [obj async for obj in await rethinkdb.r.table("accounts").filter(kwargs).run(self.rdbconn)]
+        return [
+            obj async for obj in await rethinkdb.r.table("playlists").filter(
+                kwargs).run(self.rdbconn)
+        ]

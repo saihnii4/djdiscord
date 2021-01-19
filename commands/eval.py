@@ -1,11 +1,13 @@
 import ast
-import time
 import dataclasses
+import time
 import typing
+
 import discord
+import discord.ext.commands
 import rethinkdb
 
-import discord.ext.commands
+from utils.extensions import DJDiscordContext
 
 
 def insert_returns(body: list):
@@ -23,6 +25,7 @@ def insert_returns(body: list):
     if isinstance(body[-1], ast.With):
         insert_returns(body[-1].body)
 
+
 @dataclasses.dataclass
 class Evaluation:
     author: typing.Union[discord.Member, discord.User, int]
@@ -34,11 +37,12 @@ class Evaluation:
     async def destruct(self):
         await self.message.delete(delay=10)
 
+
 class EvaluationParser(discord.ext.commands.Converter):
-    async def convert(self, ctx: discord.ext.commands.Context, argument: str) -> Evaluation:
-        code = "\n".join(f"    {i}" for i in argument.strip("` py`").splitlines())
-        
-        print(code)
+    async def convert(self, ctx: DJDiscordContext,
+                      argument: str) -> Evaluation:
+        code = "\n".join(f"    {i}"
+                         for i in argument.strip("` py`").splitlines())
 
         body = "async def _evaluation():\n{}".format(code)
 
@@ -71,19 +75,27 @@ class EvaluationParser(discord.ext.commands.Converter):
 
         return result
 
+
 @discord.ext.commands.command(name="eval")
 @discord.ext.commands.is_owner()
-async def evaluate(ctx: discord.ext.commands.Context, *, evaluation: EvaluationParser) -> None:
+async def evaluate(ctx: DJDiscordContext, *,
+                   evaluation: EvaluationParser) -> None:
     payload = ctx.bot.templates.eval.copy()
 
-    payload.add_field(name="Result", value="```{0.result}```".format(evaluation))
+    payload.add_field(name="Result",
+                      value="```{0.result}```".format(evaluation))
     payload.add_field(name="Error", value="```{0.error}```".format(evaluation))
-    payload.add_field(name="Executor", value="```{0.author}```".format(evaluation))
-    payload.add_field(name="Execution Time", value="```{0.execution_time} seconds```".format(evaluation), inline=False)
+    payload.add_field(name="Executor",
+                      value="```{0.author}```".format(evaluation))
+    payload.add_field(
+        name="Execution Time",
+        value="```{0.execution_time} seconds```".format(evaluation),
+        inline=False)
 
     message = await ctx.send(embed=payload)
     evaluation.message = message
     await evaluation.destruct()
+
 
 def setup(bot: discord.ext.commands.Bot) -> None:
     bot.add_command(evaluate)

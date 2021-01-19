@@ -1,11 +1,14 @@
+from __future__ import annotations  # Py 3.10
+
 import datetime
 import typing
 from dataclasses import dataclass
 from urllib.parse import urlparse
-from __future__ import annotations # Py 3.10
 
 import discord.ext.commands
 import rethinkdb
+
+from utils.extensions import DJDiscordContext
 
 song_emoji_conversion = {
     "open.spotify.com": "<:spotify:790187623569424424>",
@@ -19,20 +22,33 @@ class Template(type):
 
 
 class Templates(metaclass=Template):
-    eval = discord.Embed(title="Evaluation Complete!",
-                         description="Evaluations are closely monitored for data leaks and as such this message "
-                                     "will self destruct in 10 seconds", color=4128651)
+    eval = discord.Embed(
+        title="Evaluation Complete!",
+        description=
+        "Evaluations are closely monitored for data leaks and as such this message "
+        "will self destruct in 10 seconds",
+        color=4128651)
 
-    incompleteCmd = discord.Embed(title="**`ERROR`** - Insufficent Arguments",
-                                  description="Or in layman's terms, you need to give a bit more for this to work\n```\nUsage:\n{0.bot.command_prefix}{0.command.name} <command> <arguments>\n```")
-    cmdError = discord.Embed(title="**`ERROR`** - Internal Error",
-                             description="Or in layman's terms, you may need to tell the developers about this\n```\n{}```").set_image(
-        url="https://media4.giphy.com/media/TqiwHbFBaZ4ti/giphy.gif")
-    playlistChange = discord.Embed(title="Done!", description="Feel free to share this playlist with your friends!",
-                                   color=0x3EFF8B)
-    playlistPaginator = discord.Embed(title="Songs in **`{}`**'s playlist'", description="Playlist ID: {}",
+    incompleteCmd = discord.Embed(
+        title="**`ERROR`** - Insufficent Arguments",
+        description=
+        "Or in layman's terms, you need to give a bit more for this to work\n```\nUsage:\n{0.bot.command_prefix}{0.command.name} <command> <arguments>\n```"
+    )
+    cmdError = discord.Embed(
+        title="**`ERROR`** - Internal Error",
+        description=
+        "Or in layman's terms, you may need to tell the developers about this\n```\n{}```"
+    ).set_image(url="https://media4.giphy.com/media/TqiwHbFBaZ4ti/giphy.gif")
+    playlistChange = discord.Embed(
+        title="Done!",
+        description="Feel free to share this playlist with your friends!",
+        color=0x3EFF8B)
+    playlistPaginator = discord.Embed(title="Songs in **`{}`**'s playlist'",
+                                      description="Playlist ID: {}",
                                       color=0xE9B44C)
-    playlistsPaginator = discord.Embed(title="Songs for `{}`", description="Total: {} playlists", color=0xF2DDA4)
+    playlistsPaginator = discord.Embed(title="Songs for `{}`",
+                                       description="Total: {} playlists",
+                                       color=0xF2DDA4)
 
 
 @dataclass
@@ -77,8 +93,10 @@ class YoutubeLogger(object):
     def error(_):
         pass
 
+
 ydl_opts = {
-    'format': 'bestaudio/best',
+    'format':
+        'bestaudio/best',
     'postprocessors': [{
         'key': 'FFmpegExtractAudio',
         'preferredcodec': 'mp3',
@@ -86,13 +104,24 @@ ydl_opts = {
     }],
 }
 
+
 class Evaluation:
     pass
+
 
 class DatabaseEvalResults:
     OK = 0
     WARNING = 1
     ERROR = 2
+
+
+class LogOpcodes:
+    before_command_invoke = 1
+    after_command_invoke = 2
+    before_cog_invoke = 3
+    after_cog_invoke = 4
+    error = -1
+
 
 @dataclass
 class DatabaseConfigChange:
@@ -100,9 +129,12 @@ class DatabaseConfigChange:
     old_val: typing.Optional[dict]
 
     @staticmethod
-    def from_raw(_raw: typing.List[dict]) -> typing.Iterator[DatabaseConfigChange]:
+    def from_raw(
+            _raw: typing.List[dict]) -> typing.Iterator[DatabaseConfigChange]:
         for change in _raw:
-            yield DatabaseConfigChange(change.get("new_val"), change.get("old_val"))
+            yield DatabaseConfigChange(change.get("new_val"),
+                                       change.get("old_val"))
+
 
 @dataclass
 class DatabaseEvaluation:
@@ -120,24 +152,25 @@ class DatabaseEvaluation:
         raw_config_changes = _dict["config_changes"]
 
         if _dict.get("dbs_dropped") is not None:
-            dbs_dropped = _dict.get("dbs_dropped")
-        
+            dbs_dropped = _dict.get("dbs_dropped", 0)
+
         if _dict.get("dbs_created") is not None:
-            dbs_created = _dict.get("dbs_created")
+            dbs_created = _dict.get("dbs_created", 0)
 
         if _dict.get("tables_dropped") is not None:
-            tables_dropped = _dict.get("tables_dropped")
+            tables_dropped = _dict.get("tables_dropped", 0)
 
         config_changes = DatabaseConfigChange.from_raw(raw_config_changes)
-            
-        return DatabaseEvaluation(config_changes, dbs_dropped, tables_dropped, dbs_created)
+
+        return DatabaseEvaluation(config_changes, dbs_dropped, tables_dropped,
+                                  dbs_created)
 
 
 @dataclass
 class TableEvaluation:
     opcode: int
     config_changes: typing.Iterator[DatabaseConfigChange]
-    
+
     @staticmethod
     def from_dict(_dict: dict) -> TableEvaluation:
         if _dict.get("errors"):
@@ -153,12 +186,12 @@ class TableEvaluation:
 
         return TableEvaluation(opcode, config_changes)
 
+
 @dataclass
 class DocumentEvaluation:
     opcode: int
     errors: typing.Optional[list]
     warnings: typing.Optional[list]
-    changed: int
     replaced: int
     inserted: int
     skipped: int
@@ -167,11 +200,9 @@ class DocumentEvaluation:
 
     @staticmethod
     def from_dict(_dict: dict) -> DocumentEvaluation:
-        changed = _dict.get("changed")
         replaced = _dict["replaced"]
         inserted = _dict["inserted"]
         skipped = _dict["skipped"]
-        changed = _dict["changed"]
         unchanged = _dict["unchanged"]
         deleted = _dict["deleted"]
 
@@ -187,7 +218,91 @@ class DocumentEvaluation:
         else:
             opcode = DatabaseEvalResults.OK
 
-        return DocumentEvaluation(opcode, errors, warnings, changed, replaced, inserted, skipped, unchanged, deleted)
+        return DocumentEvaluation(opcode, errors, warnings, replaced, inserted,
+                                  skipped, unchanged, deleted)
+
+
+@dataclass
+class Error:
+    traceback: str
+    guild: discord.Guild
+    channel: discord.TextChannel
+    message: discord.Message
+    author: discord.Member
+
+    def __int__(self):
+        return LogOpcodes.error
+
+    def to_json(self):
+        return {"traceback": self.traceback, "guild": self.guild.id, "channel": self.channel.id,
+                "message": self.message, "author": discord.Member}
+
+
+@dataclass
+class BeforeCommandInvoke:
+    executor: discord.Member
+    command: discord.ext.commands.Command
+    guild: discord.Guild
+    channel: discord.TextChannel
+
+    def __int__(self):
+        return LogOpcodes.before_command_invoke
+
+    def to_json(self):
+        return {"executor": self.executor.id, "command": self.command.name,
+                "guild": self.guild.id,
+                "channel": self.channel.id}
+
+
+@dataclass
+class AfterCommandInvoke:
+    executor: discord.Member
+    command: discord.ext.commands.Command
+    guild: discord.Guild
+    channel: discord.TextChannel
+
+    def __int__(self):
+        return LogOpcodes.after_command_invoke
+
+    def to_json(self):
+        return {"executor": self.executor.id, "command": self.command.name,
+                "guild": self.guild.id,
+                "channel": self.channel.id}
+
+
+@dataclass
+class BeforeCogInvoke:
+    executor: discord.Member
+    cog: discord.ext.commands.Cog
+    command: discord.ext.commands.Command
+    guild: discord.Guild
+    channel: discord.TextChannel
+
+    def __int__(self):
+        return LogOpcodes.before_cog_invoke
+
+    def to_json(self):
+        return {"executor": self.executor.id, "cog": self.cog.name, "command": self.command.name,
+                "guild": self.guild.id,
+                "channel": self.channel.id}
+
+
+@dataclass
+class AfterCogInvoke:
+    executor: discord.Member
+    cog: discord.ext.commands.Cog
+    command: discord.ext.commands.Command
+    guild: discord.Guild
+    channel: discord.TextChannel
+
+    def __int__(self):
+        return LogOpcodes.after_cog_invoke
+
+    def to_json(self):
+        return {"executor": self.executor.id, "cog": self.cog.name, "command": self.command.name,
+                "guild": self.guild.id,
+                "channel": self.channel.id}
+
 
 @dataclass
 class Playlist:
@@ -196,11 +311,15 @@ class Playlist:
     author: typing.Union[discord.Member, int, discord.User]
     cover: str
 
-    async def delete_at(self, ctx: discord.ext.commands.Context, index: int):
-        await rethinkdb.r.table("accounts").get(self.id).update(
-            {"songs": rethinkdb.r.row["songs"].delete_at(index - 1)}).run(ctx.database.rdbconn)
+    async def delete_at(self, ctx: DJDiscordContext, index: int):
+        await rethinkdb.r.table("playlists").get(self.id).update({
+            "songs":
+                rethinkdb.r.row["songs"].delete_at(index - 1)
+        }).run(ctx.database.rdbconn)
 
-    async def add_song(self, ctx: discord.ext.commands.Context, song: Song) -> None:
-        await rethinkdb.r.table("accounts").get(self.id).update(
-            {"songs": rethinkdb.r.row["songs"].append(song.json)}
-        ).run(ctx.database.rdbconn)
+    async def add_song(self, ctx: DJDiscordContext,
+                       song: Song) -> None:
+        await rethinkdb.r.table("playlists").get(self.id).update({
+            "songs":
+                rethinkdb.r.row["songs"].append(song.json)
+        }).run(ctx.database.rdbconn)

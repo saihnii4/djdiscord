@@ -7,14 +7,15 @@ from urllib.parse import urlparse
 import discord
 import discord.ext.commands
 import discord.ext.menus
+import discord_argparse
 import rethinkdb
 import youtube_dl
-import discord_argparse
 
-from utils.constants import ydl_opts
 from utils.constants import Playlist
 from utils.constants import Song
 from utils.constants import song_emoji_conversion
+from utils.constants import ydl_opts
+from utils.extensions import DJDiscordContext
 
 ArgumentConverter = discord_argparse.ArgumentConverter(
     dj_role=discord_argparse.OptionalArgument(
@@ -28,7 +29,7 @@ ArgumentConverter = discord_argparse.ArgumentConverter(
 
 
 class IndexConverter(discord.ext.commands.Converter):
-    async def convert(self, ctx: discord.ext.commands.Context, argument: str):
+    async def convert(self, ctx: DJDiscordContext, argument: str):
         try:
             argument = int(argument)
         except ValueError:
@@ -41,7 +42,7 @@ class IndexConverter(discord.ext.commands.Converter):
 
 
 class VolumeConverter(discord.ext.commands.Converter):
-    async def convert(self, ctx: discord.ext.commands.Context, argument: str):
+    async def convert(self, ctx: DJDiscordContext, argument: str):
         try:
             argument = int(argument)
         except ValueError:
@@ -54,7 +55,7 @@ class VolumeConverter(discord.ext.commands.Converter):
 
 
 class PlaylistConverter(discord.ext.commands.Converter):
-    async def convert(self, ctx: discord.ext.commands.Context,
+    async def convert(self, ctx: DJDiscordContext,
                       argument: str) -> Playlist:
         try:
             author = await discord.ext.commands.MemberConverter().convert(
@@ -72,7 +73,7 @@ class PlaylistConverter(discord.ext.commands.Converter):
                 "^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$"
         ).match(argument) is not None):
             playlist = (await rethinkdb.r.db("djdiscord").table(
-                "accounts").get(argument).run(ctx.database.rdbconn))
+                "playlists").get(argument).run(ctx.database.rdbconn))
             return Playlist(playlist["id"], playlist["songs"],
                             playlist["author"], playlist["cover"])
 
@@ -82,7 +83,7 @@ class PlaylistConverter(discord.ext.commands.Converter):
 
 
 class SongConverter(discord.ext.commands.Converter):
-    async def convert(self, ctx: discord.ext.commands.Context,
+    async def convert(self, ctx: DJDiscordContext,
                       argument: str) -> Song:
         target = "ytsearch:%s" % argument
 
@@ -127,7 +128,7 @@ class PlaylistPaginator(discord.ext.menus.ListPageSource):
                  entries: typing.List[str],
                  *,
                  playlist: Playlist,
-                 ctx: discord.ext.commands.Context,
+                 ctx: DJDiscordContext,
                  per_page: int = 4):
         super().__init__(entries, per_page=per_page)
         self.templates = ctx.bot.templates
@@ -140,6 +141,10 @@ class PlaylistPaginator(discord.ext.menus.ListPageSource):
         template = self.templates.playlistPaginator.copy()
         template.title = template.title.format(str(self.author))
         template.description = template.description.format(self.playlist.id)
+
+        if self.playlist.cover:
+            template.set_thumbnail(url=self.playlist.cover)
+
         if not page:
             template.add_field(
                 name="Take this lemon \U0001f34b",
@@ -148,7 +153,7 @@ class PlaylistPaginator(discord.ext.menus.ListPageSource):
         for index, song in enumerate(page, start=offset):
             template.add_field(
                 name="%s `{}.` {}".format(index + 1, song["title"]) %
-                song_emoji_conversion[urlparse(song["url"]).netloc],
+                     song_emoji_conversion[urlparse(song["url"]).netloc],
                 value=
                 "Created: `{0[created]}`\nDuration: `{0[length]}` seconds, Author: `{0[uploader]}`"
                 .format(song),
@@ -159,9 +164,9 @@ class PlaylistPaginator(discord.ext.menus.ListPageSource):
 
 class NameValidator(discord.ext.commands.Converter):
     async def convert(
-        self: discord.ext.commands.Converter,
-        _: discord.ext.commands.Context,
-        argument: str,
+            self: discord.ext.commands.Converter,
+            _: DJDiscordContext,
+            argument: str,
     ):
         # if ctx.author.premium:
         # return textwrap.shorten(argument, 40)
@@ -185,13 +190,13 @@ class VoicePrompt(discord.ext.menus.Menu):
     async def vote_dec(self, payload) -> None:
         self.voted -= 1
 
-    async def prompt(self, ctx: discord.ext.commands.Context) -> None:
+    async def prompt(self, ctx: DJDiscordContext) -> None:
         await self.start(ctx, wait=True)
         return self.voted
 
 
 class PlaylistsPaginator(discord.ext.menus.ListPageSource):
-    def __init__(self, *, ctx: discord.ext.commands.Context,
+    def __init__(self, *, ctx: DJDiscordContext,
                  playlists: typing.List[dict]):
         super().__init__(playlists, per_page=1)
         self.author = ctx.author

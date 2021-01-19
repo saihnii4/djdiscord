@@ -15,6 +15,7 @@ requests = "*"
 async-timeout = "*"
 discord-argparse = "*"
 asyncpg = "*"
+psutil = "*"
 
 [dev-packages]
 flake8 = "*"
