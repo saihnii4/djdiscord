@@ -13,7 +13,12 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-    environment: general environment
+
+    env:
+      BOT_TOKEN: Hello
+      WEBHOOK_ID: 22
+      WEBHOOK_TOKEN: hi
+      BOT_WEBHOOK: testing
 
     steps:
     - uses: actions/checkout@v2
