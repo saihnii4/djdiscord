@@ -177,6 +177,7 @@ session.vim
 # General vim/nvim files
 *.vim
 *.nvim
+*.exrc
 
 # Temporary
 .netrwhist

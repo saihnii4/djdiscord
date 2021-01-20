@@ -8,8 +8,6 @@ from urllib.parse import urlparse
 import discord.ext.commands
 import rethinkdb
 
-from utils.extensions import DJDiscordContext
-
 song_emoji_conversion = {
     "open.spotify.com": "<:spotify:790187623569424424>",
     "soundcloud.com": "<:soundcloud:790187780486987796>",
@@ -311,13 +309,13 @@ class Playlist:
     author: typing.Union[discord.Member, int, discord.User]
     cover: str
 
-    async def delete_at(self, ctx: DJDiscordContext, index: int):
+    async def delete_at(self, ctx: discord.ext.commands.Context, index: int):
         await rethinkdb.r.table("playlists").get(self.id).update({
             "songs":
                 rethinkdb.r.row["songs"].delete_at(index - 1)
         }).run(ctx.database.rdbconn)
 
-    async def add_song(self, ctx: DJDiscordContext,
+    async def add_song(self, ctx: discord.ext.commands.Context,
                        song: Song) -> None:
         await rethinkdb.r.table("playlists").get(self.id).update({
             "songs":

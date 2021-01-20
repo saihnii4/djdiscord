@@ -52,7 +52,7 @@ class DJDiscordDatabaseManager:
     async def log(self, op: typing.Union[BeforeCogInvoke, AfterCogInvoke, BeforeCommandInvoke, AfterCommandInvoke],
                   info) -> DocumentEvaluation:
         return await self.run(rethinkdb.r.db("djdiscord").table("logs").insert(
-            {"op": op, "info": info, "logged_at": datetime.datetime.now()}))
+            {"op": int(op), "info": info, "logged_at": rethinkdb.r.now()}))
 
     async def get(self, **kwargs) -> list:
         """**`[coroutine]`** get -> Fetch accounts that fit a keyword argument"""
