@@ -9,7 +9,14 @@ import psutil
 import rethinkdb
 import youtube_dl
 
-from utils.constants import Playlist, Song, ydl_opts, BeforeCogInvoke, AfterCogInvoke, Error
+from utils.constants import (
+    Playlist,
+    Song,
+    ydl_opts,
+    BeforeCogInvoke,
+    AfterCogInvoke,
+    Error,
+)
 from utils.converters import IndexConverter
 from utils.converters import PlaylistConverter
 from utils.converters import PlaylistPaginator
@@ -29,29 +36,38 @@ class PlaylistCommands(discord.ext.commands.Cog):
             {
                 "cpu": psutil.cpu_percent(),
                 "ram": memory_sample.used / memory_sample.total,
-                "disk": psutil.disk_usage("/")
-            })
+                "disk": psutil.disk_usage("/"),
+            },
+        )
         await ctx.trigger_typing()
 
     async def cog_after_invoke(self, ctx: DJDiscordContext) -> None:
         memory_sample = psutil.virtual_memory()
         await ctx.database.log(
             AfterCogInvoke(ctx.author, self, ctx.command, ctx.guild,
-                           ctx.channel), {
-                               "cpu": psutil.cpu_percent(),
-                               "ram": memory_sample.used / memory_sample.total,
-                               "disk": psutil.disk_usage("/")
-                           })
+                           ctx.channel),
+            {
+                "cpu": psutil.cpu_percent(),
+                "ram": memory_sample.used / memory_sample.total,
+                "disk": psutil.disk_usage("/"),
+            },
+        )
 
     async def cog_command_error(self, ctx: DJDiscordContext,
                                 error: Exception) -> None:
         memory_sample = psutil.virtual_memory()
+        error_id = uuid.uuid4()
         await ctx.database.log(
-            Error(ctx.author, self, ctx.command, ctx.guild, ctx.channel), {
+            ctx,
+            Error(ctx.author, self, ctx.command, ctx.guild, ctx.channel),
+            {
                 "cpu": psutil.cpu_percent(),
                 "ram": memory_sample.used / memory_sample.total,
-                "disk": psutil.disk_usage("/")
-            })
+                "disk": psutil.disk_usage("/"),
+            },
+            error,
+            error_id,
+        )
 
     @discord.ext.commands.group(name="playlist")
     async def playlist(
@@ -60,10 +76,10 @@ class PlaylistCommands(discord.ext.commands.Cog):
             notification = (ctx.bot.templates.incompleteCmd.copy(
             ).set_thumbnail(
                 url="https://media4.giphy.com/media/TqiwHbFBaZ4ti/giphy.gif"
-            ).set_author(name=ctx.author.name,
-                         icon_url=ctx.author.avatar_url_as(
-                             format="png")).set_footer(text="Unix Time: %d" %
-                                                       time.time()))
+            ).set_author(
+                name=ctx.author.name,
+                icon_url=ctx.author.avatar_url_as(format="png"),
+            ).set_footer(text="Unix Time: %d" % time.time()))
             notification.description = notification.description.format(ctx)
             return await ctx.send(embed=notification)
 
@@ -102,11 +118,7 @@ class PlaylistCommands(discord.ext.commands.Cog):
 
         state = ctx.voice_queue.get(ctx.guild.id)
 
-        if state._loop:
-            state._loop = False
-            return
-
-        state._loop = True
+        state._loop = not state._loop
 
     @playlist.command(name="stop", aliases=["end", "interrupt", "sigint"])
     async def stop(self,
@@ -120,7 +132,8 @@ class PlaylistCommands(discord.ext.commands.Cog):
         if len(state.voice.channel.members) <= 3:
             await ctx.send(embed=discord.Embed(
                 title="Disconnected from the voice channel and stopped playing",
-                color=0xA1D2CE))
+                color=0xA1D2CE,
+            ))
             return await state.stop()
 
         if len(state.voice.channel.members) >= 3 and await ctx.dj:
@@ -129,11 +142,11 @@ class PlaylistCommands(discord.ext.commands.Cog):
             if vote_count >= 1:
                 await state.stop()
 
-    @playlist.command(name="start", aliases=["execute", "run"])
-    async def execute(
+    @playlist.command(name="run", aliases=["execute"])
+    async def run(
         self,
         ctx: DJDiscordContext,
-        playlist: PlaylistConverter,
+        playlist: PlaylistConverter = None,
         *,
         channel: discord.VoiceChannel = None
     ) -> typing.Optional[discord.Message]:
@@ -141,6 +154,14 @@ class PlaylistCommands(discord.ext.commands.Cog):
             return await ctx.send(
                 "You need to be connected to a channel in order to start playing music"
             )
+
+        if playlist is None:
+            playlist = (await ctx.database.get(id=ctx.author.id))[0]
+            if playlist is None:
+                return await ctx.send(
+                    "You do not own a playlist nor have specified a playlist to start playing"
+                )
+            playlist = Playlist.from_json(playlist)
 
         if channel is None:
             channel = ctx.author.voice.channel
@@ -175,7 +196,8 @@ class PlaylistCommands(discord.ext.commands.Cog):
                             ctx.bot.loop.create_task(
                                 ctx.send(embed=discord.Embed(
                                     title="Finished playing this playlist!",
-                                    color=0xA1D2CE)))
+                                    color=0xA1D2CE,
+                                )))
                             ctx.bot.loop.create_task(
                                 ctx.voice_queue[ctx.guild.id].stop())
                             del ctx.voice_queue[ctx.guild.id]
@@ -192,16 +214,21 @@ class PlaylistCommands(discord.ext.commands.Cog):
                     title="Current song in queue",
                     description=
                     "```css\n{} - {}\n\nCreated at {} - {} seconds long\n```".
-                    format(song["title"], song["uploader"], song["created"],
-                           song["length"]),
-                    color=0xA1D2CE).set_thumbnail(
-                        url=song["thumbnails"][-1]["url"])))
+                    format(
+                        song["title"],
+                        song["uploader"],
+                        song["created"],
+                        song["length"],
+                    ),
+                    color=0xA1D2CE,
+                ).set_thumbnail(url=song["thumbnails"][-1]["url"])))
 
             ctx.voice_queue[ctx.guild.id].voice.play(
                 discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(
                     song["source"]),
                                              volume=1),
-                after=handle_after)
+                after=handle_after,
+            )
 
         recurse_play(ctx.voice_state.current)
 
@@ -230,9 +257,12 @@ class PlaylistCommands(discord.ext.commands.Cog):
             query = slot[0]
             playlist = Playlist(query["id"], query["songs"], query["author"],
                                 query["cover"])
-        paginator = discord.ext.menus.MenuPages(source=PlaylistPaginator(
-            playlist.songs, ctx=ctx, playlist=playlist),
-                                                clear_reactions_after=True)
+        paginator = discord.ext.menus.MenuPages(
+            source=PlaylistPaginator(playlist.songs,
+                                     ctx=ctx,
+                                     playlist=playlist),
+            clear_reactions_after=True,
+        )
         await paginator.start(ctx)
 
     @playlist.command(name="add")
@@ -295,8 +325,8 @@ class PlaylistCommands(discord.ext.commands.Cog):
                 title="All done!",
                 description=
                 "Everything is clear! Begin adding songs to your playlist!",
-                color=0xF2E94E).add_field(name="Playlist Code",
-                                          value=playlist_id)
+                color=0xF2E94E,
+            ).add_field(name="Playlist Code", value=playlist_id)
             # .add_field(name="Song Limit", value="%d" % 40 if ctx.author.premium else 20)
             .set_thumbnail(url=response.attachments[0].url).set_image(
                 url=

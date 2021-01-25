@@ -77,18 +77,42 @@ class Song:
             "url": self.url,
         }
 
+@dataclass
+class Station:
+    source: str
+    thumbnail: typing.Optional[str]
+    url: typing.Optiona[str]
+
+    @property
+    def json(self) -> dict:
+        return {
+            "source": self.source,
+            "thumbnail": self.thumbnail,
+            "url": str
+        }
+
+    @staticmethod
+    def from_json(_dict: dict) -> Station:
+        source = _dict[""]
+        thumbnail = _dict.get("thumbnail")
+        url = _dict.get("url")
+
+        return Station(source, thumbnail, url)
 
 class YoutubeLogger(object):
     @staticmethod
     def debug(_):
+        """overrides default function, silencing youtube-dl"""
         pass
 
     @staticmethod
     def warning(_):
+        """overrides default function, silencing youtube-dl"""
         pass
 
     @staticmethod
     def error(_):
+        """overrides default function, silencing youtube-dl"""
         pass
 
 
@@ -100,8 +124,8 @@ ydl_opts = {
         'preferredcodec': 'mp3',
         'preferredquality': '192',
     }],
+    "logger": YoutubeLogger()
 }
-
 
 class Evaluation:
     pass
@@ -308,6 +332,15 @@ class Playlist:
     songs: list
     author: typing.Union[discord.Member, int, discord.User]
     cover: str
+
+    @staticmethod
+    def from_json(_dict: dict) -> Playlist:
+        id = _dict["id"]
+        songs = _dict["songs"]
+        author = _dict["author"]
+        cover = _dict["cover"]
+
+        return Playlist(id, songs, author, cover)
 
     async def delete_at(self, ctx: discord.ext.commands.Context, index: int):
         await rethinkdb.r.table("playlists").get(self.id).update({

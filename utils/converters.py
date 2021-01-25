@@ -11,6 +11,7 @@ import discord_argparse
 import rethinkdb
 import youtube_dl
 
+from utils.constants import Station
 from utils.constants import Playlist
 from utils.constants import Song
 from utils.constants import song_emoji_conversion
@@ -54,9 +55,22 @@ class VolumeConverter(discord.ext.commands.Converter):
         return argument
 
 
-class PlaylistConverter(discord.ext.commands.Converter):
+class StationConverter(discord.ext.commands.Converter):
     async def convert(self, ctx: DJDiscordContext,
-                      argument: str) -> Playlist:
+                      argument: str) -> typing.Optional[Station]:
+        if len(argument) == 4 and re.compile(
+                r"[AKNWaknw][a-zA-Z]{0,2}[0123456789][a-zA-Z]{1,3}").match(
+                    argument):
+            raw = ctx.database.get(call_sign=argument, table="stations")
+            return Station.from_json(raw)
+
+        if argument.isnumeric() and 87.5 <= float(argument) <= 108:
+            raw = ctx.database.get(frequency=float(argument), table="stations")
+            return Station.from_json(raw)
+
+
+class PlaylistConverter(discord.ext.commands.Converter):
+    async def convert(self, ctx: DJDiscordContext, argument: str) -> Playlist:
         try:
             author = await discord.ext.commands.MemberConverter().convert(
                 ctx, argument)
@@ -72,8 +86,8 @@ class PlaylistConverter(discord.ext.commands.Converter):
         if (re.compile(
                 "^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$"
         ).match(argument) is not None):
-            playlist = (await rethinkdb.r.db("djdiscord").table(
-                "playlists").get(argument).run(ctx.database.rdbconn))
+            playlist = (await ctx.database.run(
+                rethinkdb.r.table("playlists").get(argument)))
             return Playlist(playlist["id"], playlist["songs"],
                             playlist["author"], playlist["cover"])
 
@@ -81,10 +95,13 @@ class PlaylistConverter(discord.ext.commands.Converter):
         return Playlist(slot["id"], slot["songs"], playlist["author"],
                         playlist["cover"])
 
+    async def default(self, ctx: DJDiscordContext) -> Playlist:
+        playlist = await ctx.database.get(id=ctx.author.id)
+        return Playlist(playlist["id"], playlist["songs"],
+                        playlist["author"], playlist["cover"])
 
 class SongConverter(discord.ext.commands.Converter):
-    async def convert(self, ctx: DJDiscordContext,
-                      argument: str) -> Song:
+    async def convert(self, ctx: DJDiscordContext, argument: str) -> Song:
         target = "ytsearch:%s" % argument
 
         if urlparse(argument).netloc in (
@@ -153,7 +170,7 @@ class PlaylistPaginator(discord.ext.menus.ListPageSource):
         for index, song in enumerate(page, start=offset):
             template.add_field(
                 name="%s `{}.` {}".format(index + 1, song["title"]) %
-                     song_emoji_conversion[urlparse(song["url"]).netloc],
+                song_emoji_conversion[urlparse(song["url"]).netloc],
                 value=
                 "Created: `{0[created]}`\nDuration: `{0[length]}` seconds, Author: `{0[uploader]}`"
                 .format(song),
@@ -164,9 +181,9 @@ class PlaylistPaginator(discord.ext.menus.ListPageSource):
 
 class NameValidator(discord.ext.commands.Converter):
     async def convert(
-            self: discord.ext.commands.Converter,
-            _: DJDiscordContext,
-            argument: str,
+        self: discord.ext.commands.Converter,
+        _: DJDiscordContext,
+        argument: str,
     ):
         # if ctx.author.premium:
         # return textwrap.shorten(argument, 40)
@@ -196,8 +213,7 @@ class VoicePrompt(discord.ext.menus.Menu):
 
 
 class PlaylistsPaginator(discord.ext.menus.ListPageSource):
-    def __init__(self, *, ctx: DJDiscordContext,
-                 playlists: typing.List[dict]):
+    def __init__(self, *, ctx: DJDiscordContext, playlists: typing.List[dict]):
         super().__init__(playlists, per_page=1)
         self.author = ctx.author
         self.templates = ctx.bot.templates

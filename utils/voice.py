@@ -2,7 +2,7 @@ import asyncio
 from ssl import get_protocol_name
 import discord.ext.commands
 
-from utils.constants import Playlist
+from utils.constants import Playlist, Station
 
 
 class VoiceError(Exception):
@@ -11,10 +11,16 @@ class VoiceError(Exception):
 
 class VoiceState:
     def __init__(self, bot: discord.ext.commands.Bot,
-                 ctx: discord.ext.commands.Context, playlist: Playlist):
+                 ctx: discord.ext.commands.Context, iterator):
         self.bot = bot
         self._ctx = ctx
-        self.playlist = playlist
+        self.playlist = None
+        self.station = None
+
+        if isinstance(iterator, Station):
+            self.station = iterator
+        else:
+            self.playlist = iterator
 
         self.song_iter = iter(self.playlist.songs)
         self.current = next(self.song_iter)
@@ -38,10 +44,15 @@ class VoiceState:
 
     @property
     def loop(self):
+        if self.playlist is None:
+            raise NotImplementedError("voice state does not have a playlist attribute to loop")
+
         return self._loop
 
     @loop.setter
     def loop(self, value: bool):
+        if self.playlist is None:
+            raise NotImplementedError("voice state does not have a playlist attribute to loop")
         self._loop = value
 
     @property
@@ -49,6 +60,9 @@ class VoiceState:
         return self.voice and self.current
 
     def shift(self) -> None:
+        if self.playlist is None:
+            raise NotImplementedError("voice state does not have a playlist attribute to loop")
+
         if self._loop:
             self.next = self.current
             return
@@ -61,6 +75,9 @@ class VoiceState:
             self.next = None
 
     def skip(self):
+        if self.playlist is None:
+            raise NotImplementedError("voice state does not have a playlist attribute to loop")
+
         if self.is_playing:
             self.voice.stop()
 
