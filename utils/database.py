@@ -5,6 +5,7 @@ import asyncpg
 import rethinkdb
 import rethinkdb.ast
 import rethinkdb.net
+import discord.ext.commands
 
 from utils.constants import AfterCogInvoke
 from utils.constants import AfterCommandInvoke
