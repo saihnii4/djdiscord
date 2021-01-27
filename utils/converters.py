@@ -11,9 +11,9 @@ import discord_argparse
 import rethinkdb
 import youtube_dl
 
-from utils.constants import Station
 from utils.constants import Playlist
 from utils.constants import Song
+from utils.constants import Station
 from utils.constants import song_emoji_conversion
 from utils.constants import ydl_opts
 from utils.extensions import DJDiscordContext
@@ -60,13 +60,13 @@ class StationConverter(discord.ext.commands.Converter):
                       argument: str) -> typing.Optional[Station]:
         if len(argument) == 4 and re.compile(
                 r"[AKNWaknw][a-zA-Z]{0,2}[0123456789][a-zA-Z]{1,3}").match(
-                    argument):
-            raw = ctx.database.get(call_sign=argument, table="stations")
+            argument):
+            raw = await ctx.database.get(call_sign=argument, table="stations")
             return Station.from_json(raw)
 
-        if argument.isnumeric() and 87.5 <= float(argument) <= 108:
-            raw = ctx.database.get(frequency=float(argument), table="stations")
-            return Station.from_json(raw)
+        if re.compile(r'^-?\d+(?:\.\d+)$').match(argument) and 87.5 <= float(argument) <= 108:
+            if raw := await ctx.database.get(frequency=float(argument), table="stations"):
+                return Station.from_json(raw[0])
 
 
 class PlaylistConverter(discord.ext.commands.Converter):
@@ -75,8 +75,7 @@ class PlaylistConverter(discord.ext.commands.Converter):
             author = await discord.ext.commands.MemberConverter().convert(
                 ctx, argument)
             playlist = (await ctx.database.get(author=author.id))[0]
-            return Playlist(playlist["id"], playlist["songs"],
-                            playlist["author"], playlist["cover"])
+            return Playlist.from_json(playlist)
         except Exception as exc:
             if isinstance(exc,
                           discord.ext.commands.MemberNotFound) or isinstance(

@@ -5,7 +5,6 @@ import uuid
 import discord
 import discord.ext.commands
 import discord.ext.menus
-import psutil
 import rethinkdb
 import youtube_dl
 
@@ -13,10 +12,11 @@ from utils.constants import (
     Playlist,
     Song,
     ydl_opts,
-    BeforeCogInvoke,
-    AfterCogInvoke,
-    Error,
+    BeforeCogInvokeOp,
+    AfterCogInvokeOp,
+    ErrorOp,
 )
+from utils.embeds import insuff_args
 from utils.converters import IndexConverter
 from utils.converters import PlaylistConverter
 from utils.converters import PlaylistPaginator
@@ -29,59 +29,33 @@ from utils.voice import VoiceError, VoiceState
 
 class PlaylistCommands(discord.ext.commands.Cog):
     async def cog_before_invoke(self, ctx: DJDiscordContext) -> None:
-        memory_sample = psutil.virtual_memory()
         await ctx.database.log(
-            BeforeCogInvoke(ctx.author, self, ctx.command, ctx.guild,
-                            ctx.channel),
-            {
-                "cpu": psutil.cpu_percent(),
-                "ram": memory_sample.used / memory_sample.total,
-                "disk": psutil.disk_usage("/"),
-            },
+            BeforeCogInvokeOp(ctx.author, self, ctx.command, ctx.guild,
+                              ctx.channel),
         )
         await ctx.trigger_typing()
 
     async def cog_after_invoke(self, ctx: DJDiscordContext) -> None:
-        memory_sample = psutil.virtual_memory()
         await ctx.database.log(
-            AfterCogInvoke(ctx.author, self, ctx.command, ctx.guild,
-                           ctx.channel),
-            {
-                "cpu": psutil.cpu_percent(),
-                "ram": memory_sample.used / memory_sample.total,
-                "disk": psutil.disk_usage("/"),
-            },
+            AfterCogInvokeOp(ctx.author, self, ctx.command, ctx.guild,
+                             ctx.channel),
         )
 
     async def cog_command_error(self, ctx: DJDiscordContext,
                                 error: Exception) -> None:
-        memory_sample = psutil.virtual_memory()
-        error_id = uuid.uuid4()
+        _id = uuid.uuid4()
         await ctx.database.log(
-            ctx,
-            Error(ctx.author, self, ctx.command, ctx.guild, ctx.channel),
-            {
-                "cpu": psutil.cpu_percent(),
-                "ram": memory_sample.used / memory_sample.total,
-                "disk": psutil.disk_usage("/"),
-            },
-            error,
-            error_id,
+            ErrorOp(ctx.guild, ctx.channel, ctx.message, ctx.author),
+            error=error,
+            case_id=_id
         )
+        print(f"An error occurred during command runtime. Case ID: {_id}")
 
     @discord.ext.commands.group(name="playlist")
     async def playlist(
             self, ctx: DJDiscordContext) -> typing.Optional[discord.Message]:
         if ctx.invoked_subcommand is None:
-            notification = (ctx.bot.templates.incompleteCmd.copy(
-            ).set_thumbnail(
-                url="https://media4.giphy.com/media/TqiwHbFBaZ4ti/giphy.gif"
-            ).set_author(
-                name=ctx.author.name,
-                icon_url=ctx.author.avatar_url_as(format="png"),
-            ).set_footer(text="Unix Time: %d" % time.time()))
-            notification.description = notification.description.format(ctx)
-            return await ctx.send(embed=notification)
+            return await ctx.send(embed=insuff_args)
 
     @playlist.command(name="volume")
     async def volume(self, ctx: DJDiscordContext,

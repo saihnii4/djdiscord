@@ -61,6 +61,9 @@ class Song:
 
     # lyrics: typing.Union[str, SongLyrics]
 
+    def __getitem__(self, item):
+        return getattr(self, item, None)
+
     @property
     def emoji(self) -> str:
         return song_emoji_conversion[urlparse(self.url).netloc]
@@ -77,27 +80,25 @@ class Song:
             "url": self.url,
         }
 
+
 @dataclass
 class Station:
     source: str
     thumbnail: typing.Optional[str]
-    url: typing.Optiona[str]
+    url: typing.Optional[str]
 
     @property
     def json(self) -> dict:
-        return {
-            "source": self.source,
-            "thumbnail": self.thumbnail,
-            "url": str
-        }
+        return {"source": self.source, "thumbnail": self.thumbnail, "url": str}
 
     @staticmethod
     def from_json(_dict: dict) -> Station:
-        source = _dict[""]
+        source = _dict["source"]
         thumbnail = _dict.get("thumbnail")
         url = _dict.get("url")
 
         return Station(source, thumbnail, url)
+
 
 class YoutubeLogger(object):
     @staticmethod
@@ -118,14 +119,16 @@ class YoutubeLogger(object):
 
 ydl_opts = {
     'format':
-        'bestaudio/best',
+    'bestaudio/best',
     'postprocessors': [{
         'key': 'FFmpegExtractAudio',
         'preferredcodec': 'mp3',
         'preferredquality': '192',
     }],
-    "logger": YoutubeLogger()
+    "logger":
+    YoutubeLogger()
 }
+
 
 class Evaluation:
     pass
@@ -245,8 +248,7 @@ class DocumentEvaluation:
 
 
 @dataclass
-class Error:
-    traceback: str
+class ErrorOp:
     guild: discord.Guild
     channel: discord.TextChannel
     message: discord.Message
@@ -255,13 +257,22 @@ class Error:
     def __int__(self):
         return LogOpcodes.error
 
-    def to_json(self):
-        return {"traceback": self.traceback, "guild": self.guild.id, "channel": self.channel.id,
-                "message": self.message, "author": discord.Member}
+    def __dict__(self):
+        return {
+            "guild": self.guild.id,
+            "channel": self.channel.id,
+            "message": self.message.id,
+            "author": self.author.id,
+            "op": int(self)
+        }
+
+    @staticmethod
+    def from_context(ctx: discord.ext.commands.Context) -> ErrorOp:
+        return ErrorOp(ctx.guild, ctx.channel, ctx.message, ctx.author)
 
 
 @dataclass
-class BeforeCommandInvoke:
+class BeforeCommandInvokeOp:
     executor: discord.Member
     command: discord.ext.commands.Command
     guild: discord.Guild
@@ -270,10 +281,20 @@ class BeforeCommandInvoke:
     def __int__(self):
         return LogOpcodes.before_command_invoke
 
-    def to_json(self):
-        return {"executor": self.executor.id, "command": self.command.name,
-                "guild": self.guild.id,
-                "channel": self.channel.id}
+    def __dict__(self):
+        return {
+            "executor": self.executor.id,
+            "command": self.command.name,
+            "guild": self.guild.id,
+            "channel": self.channel.id,
+            "op": int(self)
+        }
+
+    @staticmethod
+    def from_context(
+            ctx: discord.ext.commands.Context) -> BeforeCommandInvokeOp:
+        return BeforeCommandInvokeOp(ctx.author, ctx.command, ctx.guild,
+                                     ctx.channel)
 
 
 @dataclass
@@ -286,14 +307,18 @@ class AfterCommandInvoke:
     def __int__(self):
         return LogOpcodes.after_command_invoke
 
-    def to_json(self):
-        return {"executor": self.executor.id, "command": self.command.name,
-                "guild": self.guild.id,
-                "channel": self.channel.id}
+    def __dict__(self):
+        return {
+            "executor": self.executor.id,
+            "command": self.command.name,
+            "guild": self.guild.id,
+            "channel": self.channel.id,
+            "op": int(self)
+        }
 
 
 @dataclass
-class BeforeCogInvoke:
+class BeforeCogInvokeOp:
     executor: discord.Member
     cog: discord.ext.commands.Cog
     command: discord.ext.commands.Command
@@ -303,14 +328,24 @@ class BeforeCogInvoke:
     def __int__(self):
         return LogOpcodes.before_cog_invoke
 
-    def to_json(self):
-        return {"executor": self.executor.id, "cog": self.cog.name, "command": self.command.name,
-                "guild": self.guild.id,
-                "channel": self.channel.id}
+    def __dict__(self):
+        return {
+            "executor": self.executor.id,
+            "cog": self.cog.name,
+            "command": self.command.name,
+            "guild": self.guild.id,
+            "channel": self.channel.id,
+            "op": int(self)
+        }
+
+    @staticmethod
+    def from_context(ctx: discord.ext.commands.Context) -> BeforeCogInvokeOp:
+        return BeforeCogInvokeOp(ctx.author, ctx.cog, ctx.command, ctx.guild,
+                                 ctx.channel)
 
 
 @dataclass
-class AfterCogInvoke:
+class AfterCogInvokeOp:
     executor: discord.Member
     cog: discord.ext.commands.Cog
     command: discord.ext.commands.Command
@@ -320,10 +355,19 @@ class AfterCogInvoke:
     def __int__(self):
         return LogOpcodes.after_cog_invoke
 
-    def to_json(self):
-        return {"executor": self.executor.id, "cog": self.cog.name, "command": self.command.name,
-                "guild": self.guild.id,
-                "channel": self.channel.id}
+    def __dict__(self):
+        return {
+            "executor": self.executor.id,
+            "cog": self.cog.name,
+            "command": self.command.name,
+            "guild": self.guild.id,
+            "channel": self.channel.id
+        }
+
+    @staticmethod
+    def from_context(ctx: discord.ext.commands.Context) -> AfterCogInvokeOp:
+        return AfterCogInvokeOp(ctx.author, ctx.cog, ctx.command, ctx.guild,
+                                ctx.channel)
 
 
 @dataclass
@@ -345,12 +389,12 @@ class Playlist:
     async def delete_at(self, ctx: discord.ext.commands.Context, index: int):
         await rethinkdb.r.table("playlists").get(self.id).update({
             "songs":
-                rethinkdb.r.row["songs"].delete_at(index - 1)
+            rethinkdb.r.row["songs"].delete_at(index - 1)
         }).run(ctx.database.rdbconn)
 
     async def add_song(self, ctx: discord.ext.commands.Context,
                        song: Song) -> None:
         await rethinkdb.r.table("playlists").get(self.id).update({
             "songs":
-                rethinkdb.r.row["songs"].append(song.json)
+            rethinkdb.r.row["songs"].append(song.json)
         }).run(ctx.database.rdbconn)

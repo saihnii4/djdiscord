@@ -1,0 +1,30 @@
+{
+  "title": "I think you forgot something there...",
+  "description": "If not, visit the [Support Server!](https://google.com)",
+  "color": 16758922,
+  "image": {
+    "url": "https://images.ctfassets.net/q41566h7mydg/1IDvJyygI0MkCwI6qCK2wS/4bcb3fc04cec43dc77e73f0487954960/BSoD.gif"
+  },
+  "author": {
+    "name": "DJDiscord",
+    "url": "https://djdiscord.xyz",
+    "icon_url": "https://cdn.discordapp.com/embed/avatars/0.png"
+  },
+  "fields": [
+    {
+      "name": "**`Insufficent Arguments`**",
+      "value": "You need to add another command to this command in order for this command to work",
+      "inline": true
+    },
+    {
+      "name": "**`Confused?`**",
+      "value": "If this is your first time using DJ Discord (or Discord bots in general) you can try **`!help playlist`**",
+      "inline": true
+    },
+    {
+      "name": "**`Like the bot?`**",
+      "value": "Considering the bot is in beta, the best you can do is help contribute to the project, for more info, visit our website. **INSERT NON EXISTANT WEBSITE**",
+      "inline": true
+    }
+  ]
+}

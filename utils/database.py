@@ -1,18 +1,20 @@
 import traceback
 import typing
+import uuid
 
 import asyncpg
+import psutil
 import rethinkdb
 import rethinkdb.ast
 import rethinkdb.net
-import discord.ext.commands
 
-from utils.constants import AfterCogInvoke
+from utils.constants import AfterCogInvokeOp
 from utils.constants import AfterCommandInvoke
-from utils.constants import BeforeCogInvoke
-from utils.constants import BeforeCommandInvoke
+from utils.constants import BeforeCogInvokeOp
+from utils.constants import BeforeCommandInvokeOp
 from utils.constants import DatabaseEvaluation
 from utils.constants import DocumentEvaluation
+from utils.constants import ErrorOp
 from utils.constants import TableEvaluation
 
 
@@ -51,15 +53,24 @@ class DJDiscordDatabaseManager:
         return await self._rethinkdb_execute(query)
 
     async def log(
-        self,
-        ctx: discord.ext.commands.Context,
-        op: typing.Union[BeforeCogInvoke, AfterCogInvoke, BeforeCommandInvoke,
-                         AfterCommandInvoke],
-        info,
-        error: Exception = None,
-    ) -> DocumentEvaluation:
-
-        payload = {"op": int(op), "info": info, "logged_at": rethinkdb.r.now()}
+            self,
+            op: typing.Union[BeforeCogInvokeOp, AfterCogInvokeOp,
+                             BeforeCommandInvokeOp, AfterCommandInvoke,
+                             ErrorOp],
+            info: typing.Optional[dict] = None,
+            error: typing.Optional[Exception] = None,
+            case_id: typing.Optional[uuid.UUID] = None) -> DocumentEvaluation:
+        memory_sample = psutil.virtual_memory()
+        payload = {
+            "op": int(op),
+            "info": info,
+            "logged_at": rethinkdb.r.now(),
+            "system_info": {
+                "cpu": psutil.cpu_percent(),
+                "ram": memory_sample.used / memory_sample.total,
+                "disk": psutil.disk_usage("/"),
+            }
+        }
 
         if error := getattr(error, "original", error):
             payload.update({
@@ -69,6 +80,9 @@ class DJDiscordDatabaseManager:
                         error).format()).strip()
             })
 
+        if case_id is not None:
+            payload.update({"case_id": case_id.hex})
+
         return await self.run(
             rethinkdb.r.db("djdiscord").table("logs").insert(payload))
 
@@ -77,6 +91,6 @@ class DJDiscordDatabaseManager:
 
         return [
             obj async for obj in await rethinkdb.r.table(
-                kwargs.get("table", "playlists")).filter(kwargs).run(
+                kwargs.pop("table", "playlists")).filter(kwargs).run(
                     self.rdbconn)
         ]
