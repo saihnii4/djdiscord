@@ -1,13 +1,14 @@
+from os import error
 import typing
 import uuid
 
 import discord
 import discord.ext.commands
 
-from utils.embeds import insuff_args
-from utils.converters import VoicePrompt, VolumeConverter
-from utils.constants import BeforeCogInvokeOp, AfterCogInvokeOp, ErrorOp
-from utils.converters import StationConverter
+from utils.embeds import InsuffArgs
+from utils.convert import VoicePrompt, VolumeConverter
+from utils.objects import BeforeCogInvokeOp, AfterCogInvokeOp, ErrorOp
+from utils.convert import StationConverter
 from utils.extensions import DJDiscordContext
 from utils.voice import VoiceState
 
@@ -36,7 +37,7 @@ class RadioCog(discord.ext.commands.Cog):
     @discord.ext.commands.group(name="radio")
     async def radio(self, ctx: discord.ext.commands.Context) -> None:
         if ctx.invoked_subcommand is None:
-            return await ctx.send(embed=insuff_args)
+            return await ctx.send(embed=InsuffArgs(ctx, error))
 
     @radio.command()
     async def start(

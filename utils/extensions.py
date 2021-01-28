@@ -7,7 +7,7 @@ import discord
 import discord.ext.commands
 import rethinkdb
 
-from utils.constants import Templates
+from utils.objects import Templates
 from utils.database import DJDiscordDatabaseManager
 
 

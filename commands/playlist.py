@@ -8,7 +8,7 @@ import discord.ext.menus
 import rethinkdb
 import youtube_dl
 
-from utils.constants import (
+from utils.objects import (
     Playlist,
     Song,
     ydl_opts,
@@ -16,13 +16,13 @@ from utils.constants import (
     AfterCogInvokeOp,
     ErrorOp,
 )
-from utils.embeds import insuff_args
-from utils.converters import IndexConverter
-from utils.converters import PlaylistConverter
-from utils.converters import PlaylistPaginator
-from utils.converters import SongConverter
-from utils.converters import VoicePrompt
-from utils.converters import VolumeConverter
+from utils.embeds import InsuffArgs
+from utils.convert import IndexConverter
+from utils.convert import PlaylistConverter
+from utils.convert import PlaylistPaginator
+from utils.convert import SongConverter
+from utils.convert import VoicePrompt
+from utils.convert import VolumeConverter
 from utils.extensions import DJDiscordContext
 from utils.voice import VoiceError, VoiceState
 
@@ -49,13 +49,13 @@ class PlaylistCommands(discord.ext.commands.Cog):
             error=error,
             case_id=_id
         )
-        print(f"An error occurred during command runtime. Case ID: {_id}")
+        print(f"An error occurred during command runtime. Case ID: {_id.hex}")
 
     @discord.ext.commands.group(name="playlist")
     async def playlist(
             self, ctx: DJDiscordContext) -> typing.Optional[discord.Message]:
         if ctx.invoked_subcommand is None:
-            return await ctx.send(embed=insuff_args)
+            return await ctx.send(embed=InsuffArgs(ctx))
 
     @playlist.command(name="volume")
     async def volume(self, ctx: DJDiscordContext,

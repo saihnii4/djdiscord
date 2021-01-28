@@ -8,14 +8,14 @@ import rethinkdb
 import rethinkdb.ast
 import rethinkdb.net
 
-from utils.constants import AfterCogInvokeOp
-from utils.constants import AfterCommandInvoke
-from utils.constants import BeforeCogInvokeOp
-from utils.constants import BeforeCommandInvokeOp
-from utils.constants import DatabaseEvaluation
-from utils.constants import DocumentEvaluation
-from utils.constants import ErrorOp
-from utils.constants import TableEvaluation
+from utils.objects import AfterCogInvokeOp
+from utils.objects import AfterCommandInvoke
+from utils.objects import BeforeCogInvokeOp
+from utils.objects import BeforeCommandInvokeOp
+from utils.objects import DatabaseEvaluation
+from utils.objects import DocumentEvaluation
+from utils.objects import ErrorOp
+from utils.objects import TableEvaluation
 
 
 class DJDiscordDatabaseManager:

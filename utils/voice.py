@@ -1,6 +1,6 @@
 import discord.ext.commands
 
-from utils.constants import Playlist, Station
+from utils.objects import Playlist, Station
 
 
 class VoiceError(Exception):

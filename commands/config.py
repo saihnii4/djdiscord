@@ -1,6 +1,6 @@
 import discord.ext.commands
 
-from utils.converters import ArgumentConverter
+from utils.convert import ArgumentConverter
 from utils.extensions import DJDiscordContext
 
 

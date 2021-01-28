@@ -1,0 +1,38 @@
+{
+  "content": "cool",
+  "embed": {
+    "title": "I'm sorry, `{0.author.name}`. I'm afraid I can't do that",
+    "description": "The monkeys behind DJDiscord are scratching their head in confusion right now. ",
+    "color": 15679030,
+    "image": {
+      "url": "https://images-ext-2.discordapp.net/external/w16YHplN3SIRhGTSrTBI5PsX0WxCyHpFPJiQvpN13qk/https/upload.wikimedia.org/wikipedia/commons/6/67/Forced-linux-kernel-panic-under-qemu.gif?width=400&height=222"
+    },
+    "author": {
+      "name": "DJDiscord",
+      "url": "https://djdiscord.xyz",
+      "icon_url": "https://cdn.discordapp.com/embed/avatars/0.png"
+    },
+    "fields": [
+      {
+        "name": "**`But what happened exactly?`**",
+        "value": "While we can't tell you exactly what happened, we do have a long string to tell our developers (or just developer ;-;).",
+        "inline": true
+      },
+      {
+        "name": "**`What's this long string then`**",
+        "value": "Thanks for asking! It's {1}",
+        "inline": true
+      },
+      {
+        "name": "**`Confused?`**",
+        "value": "If this is your first time using DJ Discord (or Discord bots in general) you can try **`!help`**",
+        "inline": true
+      },
+      {
+        "name": "**`Like the bot?`**",
+        "value": "Considering the bot is in beta, the best you can do is help contribute to the project, for more info, visit our website. **INSERT NON EXISTANT WEBSITE**",
+        "inline": true
+      }
+    ]
+  }
+}
