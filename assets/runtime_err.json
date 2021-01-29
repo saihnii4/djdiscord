@@ -3,7 +3,7 @@
   "embed": {
     "title": "I'm sorry, `{0.author.name}`. I'm afraid I can't do that",
     "description": "The monkeys behind DJDiscord are scratching their head in confusion right now. ",
-    "color": 15679030,
+    "color": 1710913,
     "image": {
       "url": "https://images-ext-2.discordapp.net/external/w16YHplN3SIRhGTSrTBI5PsX0WxCyHpFPJiQvpN13qk/https/upload.wikimedia.org/wikipedia/commons/6/67/Forced-linux-kernel-panic-under-qemu.gif?width=400&height=222"
     },

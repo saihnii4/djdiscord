@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 
 import asyncpg
+import lavalink
 import discord
 import discord.ext.commands
 import rethinkdb
@@ -36,8 +37,7 @@ class DJDiscordContext(discord.ext.commands.Context):
             pass
 
     @property
-    def database(
-            self: DJDiscordContext) -> DJDiscordDatabaseManager:
+    def database(self: DJDiscordContext) -> DJDiscordDatabaseManager:
         return DJDiscordDatabaseManager(self.bot.rdbconn, self.bot.psqlconn)
 
 
@@ -53,6 +53,14 @@ class DJDiscord(discord.ext.commands.Bot):
                                     os.path.splitext(object)[0])
 
     async def on_connect(self):
+        self.lavalink = lavalink.Client(self.user.id)
+        self.lavalink.add_node(os.environ["LAVALINK_HOST"],
+                               os.environ["LAVALINK_PORT"],
+                               os.environ["LAVALINK_PASSWORD"],
+                               os.environ["LAVALINK_REGION"],
+                               os.environ["LAVALINK_NODE_NAME"])
+        self.add_listener(self.lavalink.voice_update_handler,
+                          'on_socket_response')
         rethinkdb.r.set_loop_type('asyncio')
         self.rdbconn = await rethinkdb.r.connect(
             db="djdiscord",

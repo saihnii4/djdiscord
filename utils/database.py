@@ -73,6 +73,9 @@ class DJDiscordDatabaseManager:
         }
 
         if error := getattr(error, "original", error):
+            if isinstance(error, str):
+                payload.update({"error": error})
+
             payload.update({
                 "error":
                 "".join(
