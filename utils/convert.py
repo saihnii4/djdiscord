@@ -4,7 +4,6 @@ import textwrap
 import typing
 from urllib.parse import urlparse
 
-import lavalink
 import discord
 import discord.ext.commands
 import discord.ext.menus
@@ -50,10 +49,10 @@ class VolumeConverter(discord.ext.commands.Converter):
         except ValueError:
             return
 
-        if argument < 0 or argument > 100:
+        if argument <= 0 or argument > 100:
             return
 
-        return int(argument)/100
+        return argument
 
 
 class StationConverter(discord.ext.commands.Converter):
@@ -113,7 +112,7 @@ class SongConverter(discord.ext.commands.Converter):
 
         with youtube_dl.YoutubeDL(ydl_opts) as ytdl:
             if data := ytdl.extract_info(target, download=False):
-                if "entries" in data and data.get("entries"):
+                if "entries" in data:
                     return Song(
                         data["entries"][0]["formats"][0]["url"],
                         data["entries"][0]["webpage_url"],

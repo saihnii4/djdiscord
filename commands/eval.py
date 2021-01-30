@@ -36,6 +36,7 @@ class Evaluation:
     async def destruct(self):
         await self.message.delete(delay=10)
 
+
 class EvaluationParser(discord.ext.commands.Converter):
     async def convert(self, ctx: DJDiscordContext,
                       argument: str) -> Evaluation:

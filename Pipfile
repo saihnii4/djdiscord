@@ -16,9 +16,6 @@ async-timeout = "*"
 discord-argparse = "*"
 asyncpg = "*"
 psutil = "*"
-lavalink = "*"
-aiodns = "*"
-cchardet = "*"
 
 [dev-packages]
 flake8 = "*"
