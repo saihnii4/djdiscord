@@ -1,34 +1,92 @@
-import time
 import typing
-import re
 import uuid
 
 import discord
 import discord.ext.commands
+import discord.ext.commands
 import discord.ext.menus
-import rethinkdb
-import youtube_dl
-
-from utils.objects import (
-    Playlist,
-    Song,
-    ydl_opts,
-    BeforeCogInvokeOp,
-    AfterCogInvokeOp,
-    ErrorOp,
-)
 import lavalink
+import rethinkdb
+
 from utils.convert import IndexConverter
 from utils.convert import PlaylistConverter
 from utils.convert import PlaylistPaginator
 from utils.convert import SongConverter
-from utils.convert import VoicePrompt
+from utils.convert import StationConverter
 from utils.convert import VolumeConverter
 from utils.extensions import DJDiscordContext
-from utils.voice import VoiceError, VoiceState
+from utils.objects import (
+    Playlist,
+    BeforeCogInvokeOp,
+    AfterCogInvokeOp,
+    ErrorOp,
+)
 
 
-class PlaylistCommands(discord.ext.commands.Cog):
+def milliseconds_to_str(millis: int) -> str:
+    formatted_arr = []
+
+    seconds = (millis / 1000) % 60
+    minutes = (millis / (1000 * 60)) % 60
+    hours = (millis / (1000 * 60 * 60)) % 24
+
+    if int(hours):
+        formatted_arr.append("%d hours" % hours)
+
+    if int(minutes):
+        formatted_arr.append("%d minutes" % minutes)
+
+    if int(seconds):
+        formatted_arr.append("%d seconds" % seconds)
+
+    return ", ".join(formatted_arr)
+
+
+class MusicCog(discord.ext.commands.Cog):
+    def __init__(self, bot: discord.ext.commands.Bot):
+        self.bot = bot
+        lavalink.add_event_hook(self.on_track_start,
+                                event=lavalink.TrackStartEvent)
+        lavalink.add_event_hook(self.on_queue_end,
+                                event=lavalink.QueueEndEvent)
+
+    async def on_track_start(self, event: lavalink.TrackStartEvent):
+        embed = discord.Embed(title="Now playing", color=0x333745)
+        if "thumbnails" in event.track.extra.get("raw_info"):
+            embed.add_field(name="Song Title",
+                            value=event.track.title,
+                            inline=False)
+            embed.add_field(name="Song Author",
+                            value=event.track.author,
+                            inline=False)
+            embed.add_field(name="Song Duration",
+                            value=milliseconds_to_str(event.track.duration),
+                            inline=False)
+            embed.add_field(name="Original Link",
+                            value="[Click Here](%s)" %
+                            event.track.extra["raw_info"]["url"],
+                            inline=False)
+            embed.set_thumbnail(
+                url=event.track.extra["raw_info"]["thumbnails"][-1]["url"])
+            embed.set_footer(text="Song ")
+        else:
+            embed.add_field(name="Radio Station Call Sign",
+                            value=event.track.extra["raw_info"]["call_sign"],
+                            inline=False)
+            embed.add_field(name='Radio Station Frequency',
+                            value=event.track.extra["raw_info"]["frequency"],
+                            inline=False)
+            embed.add_field(name="Radio Station Link",
+                            value="[Click Here]({})".format(
+                                event.track.extra["raw_info"]["url"]),
+                            inline=False)
+            embed.set_thumbnail(url=event.track.extra["raw_info"]["thumbnail"])
+        await event.track.extra["context"].send(embed=embed)
+
+    async def on_queue_end(self, event: lavalink.QueueEndEvent):
+        ws = self.bot._connection._get_websocket(event.player.guild_id)
+        await ws.voice_state(str(event.player.guild_id), None)
+
     async def cog_before_invoke(self, ctx: DJDiscordContext) -> None:
         if ctx.guild is None:
             return
@@ -54,216 +112,21 @@ class PlaylistCommands(discord.ext.commands.Cog):
                                case_id=_id)
         print(f"An error occurred during command runtime. Case ID: {_id.hex}")
 
-    async def ensure_voice(self, ctx):
-        """ This check ensures that the bot and command author are in the same voicechannel. """
-        player = ctx.bot.lavalink.player_manager.create(ctx.guild.id,
-                                                        endpoint=str(
-                                                            ctx.guild.region))
-        # Create returns a player if one exists, otherwise creates.
-        # This line is important because it ensures that a player always exists for a guild.
-
-        # Most people might consider this a waste of resources for guilds that aren't playing, but this is
-        # the easiest and simplest way of ensuring players are created.
-
-        # These are commands that require the bot to join a voicechannel (i.e. initiating playback).
-        # Commands such as volume/skip etc don't require the bot to be in a voicechannel so don't need listing here.
-        if not ctx.author.voice or not ctx.author.voice.channel:
-            # Our cog_command_error handler catches this and sends it to the voicechannel.
-            # Exceptions allow us to "short-circuit" command invocation via checks so the
-            # execution state of the command goes no further.
-            raise discord.ext.commands.CommandInvokeError(
-                'Join a voicechannel first.')
-
-        if not player.is_connected:
+    async def ensure_voice(self, ctx: DJDiscordContext):
+        if not ctx.player.is_connected:
             permissions = ctx.author.voice.channel.permissions_for(ctx.me)
 
             if not permissions.connect or not permissions.speak:  # Check user limit too?
                 raise discord.ext.commands.CommandInvokeError(
                     'I need the `CONNECT` and `SPEAK` permissions.')
-
-            player.store('channel', ctx.channel.id)
-            await self.connect_to(ctx, ctx.guild.id,
-                                  str(ctx.author.voice.channel.id))
         else:
-            if int(player.channel_id) != ctx.author.voice.channel.id:
+            if int(ctx.player.channel_id) != ctx.author.voice.channel.id:
                 raise discord.ext.commands.CommandInvokeError(
                     'You need to be in my voicechannel.')
 
-    async def track_hook(self, ctx, event):
-        if isinstance(event, lavalink.events.QueueEndEvent):
-            # When this track_hook receives a "QueueEndEvent" from lavalink.py
-            # it indicates that there are no tracks left in the player's queue.
-            # To save on resources, we can tell the bot to disconnect from the voicechannel.
-            guild_id = int(event.player.guild_id)
-            await self.connect_to(ctx, guild_id, None)
-
-    async def connect_to(self, ctx, guild_id: int, channel_id: str):
-        """ Connects to the given voicechannel ID. A channel_id of `None` means disconnect. """
-        ws = ctx.bot._connection._get_websocket(guild_id)
-        await ws.voice_state(str(guild_id), channel_id)
-        # The above looks dirty, we could alternatively use `bot.shards[shard_id].ws` but that assumes
-        # the bot instance is an AutoShardedBot.
-
-    @discord.ext.commands.command(aliases=['p'])
-    async def test(self, ctx, *, query: str):
-        """ Searches and plays a song from a given query. """
-        # Get the player for this guild from cache.
-        player = ctx.bot.lavalink.player_manager.get(ctx.guild.id)
-        # Remove leading and trailing <>. <> may be used to suppress embedding links in Discord.
-
-        url_rx = re.compile(r'https?://(?:www\.)?.+')
-        query = query.strip('<>')
-
-        # Check if the user input might be a URL. If it isn't, we can Lavalink do a YouTube search for it instead.
-        # SoundCloud searching is possible by prefixing "scsearch:" instead.
-        if not url_rx.match(query):
-            query = f'ytsearch:{query}'
-
-        # Get the results for the query from Lavalink.
-        results = await player.node.get_tracks(query)
-
-        # Results could be None if Lavalink returns an invalid response (non-JSON/non-200 (OK)).
-        # ALternatively, resullts['tracks'] could be an empty array if the query yielded no tracks.
-        if not results or not results['tracks']:
-            return await ctx.send('Nothing found!')
-
-        embed = discord.Embed(color=discord.Color.blurple())
-
-        # Valid loadTypes are:
-        #   TRACK_LOADED    - single video/direct URL)
-        #   PLAYLIST_LOADED - direct URL to playlist)
-        #   SEARCH_RESULT   - query prefixed with either ytsearch: or scsearch:.
-        #   NO_MATCHES      - query yielded no results
-        #   LOAD_FAILED     - most likely, the video encountered an exception during loading.
-        if results['loadType'] == 'PLAYLIST_LOADED':
-            tracks = results['tracks']
-            print(tracks)
-
-            for track in tracks:
-                # Add all of the tracks from the playlist to the queue.
-                player.add(requester=ctx.author.id, track=track)
-
-            embed.title = 'Playlist Enqueued!'
-            embed.description = f'{results["playlistInfo"]["name"]} - {len(tracks)} tracks'
-        else:
-            track = results['tracks'][0]
-            print(track)
-            embed.title = 'Track Enqueued'
-            embed.description = f'[{track["info"]["title"]}]({track["info"]["uri"]})'
-
-            # You can attach additional information to audiotracks through kwargs, however this involves
-            # constructing the AudioTrack class yourself.
-            track = lavalink.models.AudioTrack(track,
-                                               ctx.author.id,
-                                               recommended=True)
-            player.add(requester=ctx.author.id, track=track)
-
-        await ctx.send(embed=embed)
-
-        # We don't want to call .play() if the player is playing as that will effectively skip
-        # the current track.
-        if not player.is_playing:
-            await player.play()
-
-    @discord.ext.commands.command(name="now")
-    async def now(self, ctx: DJDiscordContext) -> None:
-        if ctx.author.voice is None:
-            return await ctx.send(
-                "You need to join a voice channel to see the current song in the queue"
-            )
-
-        if ctx.guild.id not in ctx.voice_queue:
-            return await ctx.send("The bot isn't playing any music")
-
-        current_obj = ctx.voice_queue[ctx.guild.id].current
-
-        if "created" in current_obj:
-            await ctx.send(
-                embed=discord.Embed(title="Current song in queue").add_field(
-                    name="Song Name", value=current_obj["title"]).add_field(
-                        name="Song Length", value=current_obj["length"]).
-                add_field(name="Song Uploader", value=current_obj["uploader"]).
-                add_field(name="Original Link",
-                          value="[Click Me!]({})".format(
-                              current_obj["url"])).set_thumbnail(
-                                  url=current_obj["thumbnails"][-1]["url"]))
-        else:
-            await ctx.send(embed=discord.Embed(
-                title="Current radio station").add_field(
-                    name="Radio Station Call Sign",
-                    value=current_obj["call_sign"]).add_field(
-                        name="Radio station Frequency",
-                        value=current_obj["frequency"]).add_field(
-                            name="Original Link", value=current_obj["url"]).
-                           set_thumbnail(url=current_obj["thumbnail"]))
-
-    @discord.ext.commands.command(name="volume")
-    async def volume(self, ctx: DJDiscordContext,
-                     volume: VolumeConverter) -> None:
-        if ctx.author.voice is None:
-            return await ctx.send(
-                "You need to be connected to a channel in order to change the volume"
-            )
-
-        if ctx.guild.id not in ctx.voice_queue:
-            return await ctx.send("The bot isn't playing any music")
-
-        state = ctx.voice_queue.get(ctx.guild.id)
-
-        state.voice.source.volume = volume
-
-    @discord.ext.commands.command(name="skip")
-    async def skip(self,
-                   ctx: DJDiscordContext) -> typing.Optional[discord.Message]:
-        if ctx.author.voice is None:
-            return await ctx.send(
-                "You need to be connected to a channel in order to skip music")
-
-        state = ctx.voice_queue.get(ctx.guild.id)
-
-        state.skip()
-
-        return await ctx.send(
-            embed=discord.Embed(title="Skipped song!", color=0xA1D2CE))
-
-    @discord.ext.commands.command(name="loop")
-    async def loop(self,
-                   ctx: DJDiscordContext) -> typing.Optional[discord.Message]:
-        if ctx.author.voice is None:
-            return await ctx.send(
-                "You need to be connected to a channel in order to skip music")
-
-        if ctx.guild.id not in ctx.voice_queue:
-            return await ctx.send("The bot isn't playing any music")
-
-        state = ctx.voice_queue.get(ctx.guild.id)
-
-        state._loop = not state._loop
-
-    @discord.ext.commands.command(name="stop",
-                                  aliases=["end", "interrupt", "sigint"])
-    async def stop(self,
-                   ctx: DJDiscordContext) -> typing.Optional[discord.Message]:
-        if ctx.author.voice is None:
-            return await ctx.send(
-                "You need to be connected to a channel in order to stop music")
-        player = ctx.bot.lavalink.player_manager.get(ctx.guild.id)
-
-        if not ctx.author.voice or (
-                player.is_connected
-                and ctx.author.voice.channel.id != int(player.channel_id)):
-            return await ctx.send('You\'re not in my voicechannel!')
-
-        player.queue.clear()
-        await player.stop()
-        await self.connect_to(ctx, ctx.guild.id, None)
-        return await ctx.send(embed=discord.Embed(
-            title="Disconnected from the voice channel and stopped playing",
-            color=0xA1D2CE,
-        ))
-
-    @discord.ext.commands.command(name="start", aliases=["begin", "play"])
-    async def run(
+    @discord.ext.commands.command(name="play",
+                                  aliases=["begin", "run", "start"])
+    async def play(
         self,
         ctx: DJDiscordContext,
         playlist: PlaylistConverter = None,
@@ -281,15 +144,163 @@ class PlaylistCommands(discord.ext.commands.Cog):
                 )
             playlist = Playlist.from_json(playlist)
 
-        player = ctx.bot.lavalink.player_manager.get(ctx.guild.id)
+        ws = ctx.bot._connection._get_websocket(ctx.guild.id)
+        await ws.voice_state(str(ctx.guild.id),
+                             str(ctx.author.voice.channel.id))
 
         for song in playlist.songs:
-            results = await player.node.get_tracks(song["url"])
+            results = await ctx.player.node.get_tracks(song["url"])
 
-            player.add(requester=ctx.author.id, track=results["tracks"][0])
+            track = lavalink.AudioTrack(results["tracks"][0],
+                                        requester=ctx.author.id,
+                                        context=ctx,
+                                        raw_info=song)
 
-        if not player.is_playing:
-            await player.play()
+            ctx.player.add(requester=ctx.author.id, track=track)
+
+        if not ctx.player.is_playing:
+            await ctx.player.play()
+
+    @discord.ext.commands.command(name="now")
+    async def now(self, ctx: DJDiscordContext) -> None:
+        if ctx.author.voice is None:
+            return await ctx.send(
+                "You need to join a voice channel to see the current song in the queue"
+            )
+
+        if "created" in ctx.player.current.extra.get("raw_info"):
+            await ctx.send(
+                embed=discord.Embed(title="Current song in queue").add_field(
+                    name="Song Name",
+                    value=ctx.player.current.extra.get("raw_info")["title"]).
+                add_field(name="Song Length",
+                          value=ctx.player.current.extra.get("raw_info")
+                          ["length"]).add_field(name="Song Uploader",
+                                                value=ctx.player.current.extra.
+                                                get("raw_info")["uploader"]).
+                add_field(name="Original Link",
+                          value="[Click Me!]({})".format(
+                              ctx.player.current.extra.get("raw_info")["url"])
+                          ).set_thumbnail(url=ctx.player.current.extra.get(
+                              "raw_info")["thumbnails"][-1]["url"]))
+        else:
+            await ctx.send(embed=discord.Embed(
+                title="Current radio station").add_field(
+                    name="Radio Station Call Sign",
+                    value=ctx.player.current.extra.get("raw_info")["call_sign"]
+                ).add_field(name="Radio station Frequency",
+                            value=ctx.player.current.extra.get("raw_info")
+                            ["frequency"]).add_field(
+                                name="Original Link",
+                                value=ctx.player.current.extra.get(
+                                    "raw_info")["url"]).set_thumbnail(
+                                        url=ctx.player.current.extra.get(
+                                            "raw_info")["thumbnail"]))
+
+    @discord.ext.commands.command(name="radiostart")
+    async def radiostart(
+            self, ctx: DJDiscordContext,
+            station: StationConverter) -> typing.Optional[discord.Message]:
+        if ctx.author.voice is None:
+            return await ctx.send(
+                "You need to be connected to a channel in order to start playing music"
+            )
+
+        if station is None:
+            return await ctx.send(
+                "You have not specified a valid radio station to start playing"
+            )
+
+        ws = ctx.bot._connection._get_websocket(ctx.guild.id)
+        await ws.voice_state(str(ctx.guild.id),
+                             str(ctx.author.voice.channel.id))
+
+        results = await ctx.player.node.get_tracks(station.source)
+
+        track = lavalink.AudioTrack(results["tracks"][0],
+                                    requester=ctx.author.id,
+                                    context=ctx,
+                                    raw_info=station.json)
+
+        ctx.player.add(track=track, requester=ctx.author.id)
+
+        if not ctx.player.is_playing:
+            await ctx.player.play()
+
+    @discord.ext.commands.command(name="volume")
+    async def volume(self, ctx: DJDiscordContext,
+                     volume: VolumeConverter) -> None:
+        if ctx.author.voice is None:
+            return await ctx.send(
+                "You need to be connected to a channel in order to change the volume"
+            )
+
+        if not ctx.player.is_playing:
+            return await ctx.send("The bot isn't playing any music")
+
+        await ctx.player.set_volume(volume)
+
+    @discord.ext.commands.command(name="skip")
+    async def skip(self,
+                   ctx: DJDiscordContext) -> typing.Optional[discord.Message]:
+        if ctx.author.voice is None:
+            return await ctx.send(
+                "You need to be connected to a channel in order to skip music")
+
+        if not ctx.author.voice or (
+                ctx.player.is_connected
+                and ctx.author.voice.channel.id != int(ctx.player.channel_id)):
+            return await ctx.send('You\'re not in my voicechannel!')
+
+        if not ctx.player.is_playing:
+            return await ctx.send("The bot isn't playing any music")
+
+        await ctx.player.skip()
+
+        return await ctx.send(
+            embed=discord.Embed(title="Skipped song!", color=0xA1D2CE))
+
+    @discord.ext.commands.command(name="loop")
+    async def loop(self,
+                   ctx: DJDiscordContext) -> typing.Optional[discord.Message]:
+        if ctx.author.voice is None:
+            return await ctx.send(
+                "You need to be connected to a channel in order to skip music")
+
+        if not ctx.author.voice or (
+                ctx.player.is_connected
+                and ctx.author.voice.channel.id != int(ctx.player.channel_id)):
+            return await ctx.send('You\'re not in my voicechannel!')
+
+        if not ctx.player.is_playing:
+            return await ctx.send("The bot isn't playing any music")
+
+        ctx.player.set_repeat(not ctx.player.repeat)
+
+    @discord.ext.commands.command(name="stop",
+                                  aliases=["end", "interrupt", "sigint"])
+    async def stop(self,
+                   ctx: DJDiscordContext) -> typing.Optional[discord.Message]:
+        if ctx.author.voice is None:
+            return await ctx.send(
+                "You need to be connected to a channel in order to stop music")
+
+        if not ctx.player.is_playing:
+            return await ctx.send("The bot isn't playing any music")
+
+        if not ctx.author.voice or (
+                ctx.player.is_connected
+                and ctx.author.voice.channel.id != int(ctx.player.channel_id)):
+            return await ctx.send('You\'re not in my voicechannel!')
+
+        ctx.player.queue.clear()
+        await ctx.player.stop()
+        ws = ctx.bot._connection._get_websocket(ctx.guild.id)
+        await ws.voice_state(str(ctx.guild.id), None)
+        return await ctx.send(embed=discord.Embed(
+            title="Disconnected from the voice channel and stopped playing",
+            color=0xA1D2CE,
+        ))
 
     @discord.ext.commands.command(name="delete", aliases=["tremove"])
     async def delete(self, ctx: DJDiscordContext,
@@ -345,7 +356,6 @@ class PlaylistCommands(discord.ext.commands.Cog):
                 "id": playlist_id,
                 "author": ctx.author.id,
                 "songs": [],
-                "upvotes": 0,
                 "cover": None,
             }))
 
@@ -394,4 +404,4 @@ class PlaylistCommands(discord.ext.commands.Cog):
 
 
 def setup(bot: discord.ext.commands.Bot) -> None:
-    bot.add_cog(PlaylistCommands())
+    bot.add_cog(MusicCog(bot))

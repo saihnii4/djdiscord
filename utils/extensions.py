@@ -17,6 +17,13 @@ class DJDiscordContext(discord.ext.commands.Context):
         super().__init__(**kwargs)
 
     @property
+    def player(self: DJDiscordContext) -> None:
+        if not self.bot.lavalink.player_manager.get(self.guild.id):
+            player = self.bot.lavalink.player_manager.create(self.guild.id, endpoint=str(self.guild.region))
+            return player
+        return self.bot.lavalink.player_manager.get(self.guild.id)
+
+    @property
     def voice_queue(self: DJDiscordContext) -> dict:
         return self.bot.voice_queue
 
@@ -51,6 +58,7 @@ class DJDiscord(discord.ext.commands.Bot):
                     "./commands/%s" % object)[1] == ".py":
                 self.load_extension("commands.%s" %
                                     os.path.splitext(object)[0])
+        self.load_extension("jishaku")
 
     async def on_connect(self):
         self.lavalink = lavalink.Client(self.user.id)

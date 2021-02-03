@@ -31,6 +31,7 @@ async def config(
             await ctx.database.run(
                 """UPDATE configuration SET {}=$1 WHERE ID=$2;""".format(key),
                 value.id if value is not None else value, ctx.guild.id)
+
     return await ctx.send(args)
 
 

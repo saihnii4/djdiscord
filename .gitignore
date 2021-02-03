@@ -7,6 +7,7 @@
 
 ## weird
 
+*.gz
 gmon.out
 application.yml
 *.nvim

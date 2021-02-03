@@ -19,6 +19,7 @@ psutil = "*"
 lavalink = "*"
 aiodns = "*"
 cchardet = "*"
+jishaku = "*"
 
 [dev-packages]
 flake8 = "*"
