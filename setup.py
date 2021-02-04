@@ -1,4 +1,5 @@
 import requests
+import rethinkdb
 import os
 
 if "progress.png" not in os.listdir("./assets"):
@@ -23,3 +24,22 @@ with open("./Lavalink.jar", "wb") as lavalink:
             "https://github.com/Frederikam/Lavalink/releases/download/3.3.2.3/Lavalink.jar"
         ).content
     )
+
+database = rethinkdb.r.connect(db="djdiscord",
+                               host=os.environ["RETHINKDB_HOST"],
+                               port=os.environ["RETHINKDB_PORT"],
+                               user=os.environ["RETHINKDB_USERNAME"],
+                               password=os.environ["RETHINKDB_PASSWORD"])
+
+rethinkdb.r.db_create("djdiscord").run(database)
+
+rethinkdb.r.db("djdiscord").table_create("playlists").run(database)
+
+rethinkdb.r.db("djdiscord").table_create("stations").run(database)
+
+rethinkdb.r.db("djdiscord").table_create("logs").run(database)
+
+rethinkdb.r.db("rethinkdb")
+    .table("users")
+    .insert({"id": "djdiscord", "password": os.environ["RETHINKDB_PASSWORD"]})
+    .run(database)
