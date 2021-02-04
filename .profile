@@ -1,3 +1,1 @@
-echo "hi"
-
 nohup rethinkdb &
