@@ -1,6 +1,9 @@
+import dotenv
 import requests
 import rethinkdb
 import os
+
+dotenv.load_dotenv()
 
 if "progress.png" not in os.listdir("./assets"):
     with open("./assets/progress.png", "wb") as progress:
