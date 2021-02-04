@@ -103,7 +103,7 @@ class DJDiscord(discord.ext.commands.Bot):
         self._admin_rdbconn = await rethinkdb.r.connect()
         if (
             not await rethinkdb.r.db("rethinkdb")
-            .table("test")
+            .table("users")
             .get("djdiscord")
             .run(self._admin_rdbconn)
         ):
