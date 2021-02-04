@@ -100,41 +100,6 @@ class DJDiscord(discord.ext.commands.Bot):
         )
         self.add_listener(self.lavalink.voice_update_handler, "on_socket_response")
         rethinkdb.r.set_loop_type("asyncio")
-        self._admin_rdbconn = await rethinkdb.r.connect()
-        if (
-            not await rethinkdb.r.db("rethinkdb")
-            .table("users")
-            .get("djdiscord")
-            .run(self._admin_rdbconn)
-        ):
-            await rethinkdb.r.db("rethinkdb").table("users").insert(
-                {"id": "djdiscord", "password": os.environ["RETHINKDB_PASSWORD"]}
-            ).run(self._admin_rdbconn)
-
-            if "djdiscord" not in await rethinkdb.r.db_list().run(self._admin_rdbconn):
-                await rethinkdb.r.db_create("djdiscord").run(self._admin_rdbconn)
-
-            if "playlists" not in await rethinkdb.r.db("djdiscord").table_list().run(
-                self._admin_rdbconn
-            ):
-                await rethinkdb.r.db("djdiscord").table_create("playlists").run(
-                    self._admin_rdbconn
-                )
-
-            if "stations" not in await rethinkdb.r.db("djdiscord").table_list().run(
-                self._admin_rdbconn
-            ):
-                await rethinkdb.r.db("djdiscord").table_create("stations").run(
-                    self._admin_rdbconn
-                )
-
-            if "logs" not in await rethinkdb.r.db("djdiscord").table_list().run(
-                self._admin_rdbconn
-            ):
-                await rethinkdb.r.db("djdiscord").table_create("logs").run(
-                    self._admin_rdbconn
-                )
-        del self._admin_rdbconn
         self.rdbconn = await rethinkdb.r.connect(
             db="djdiscord",
             host=os.environ["RETHINKDB_HOST"],
