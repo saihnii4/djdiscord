@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 
 import os
 
@@ -8,6 +9,7 @@ import discord
 import discord.ext.commands
 import rethinkdb
 
+from pretty_help import PrettyHelp, navigation
 from utils.objects import Templates
 from utils.database import DJDiscordDatabaseManager
 
@@ -19,7 +21,8 @@ class DJDiscordContext(discord.ext.commands.Context):
     @property
     def player(self: DJDiscordContext) -> None:
         if not self.bot.lavalink.player_manager.get(self.guild.id):
-            player = self.bot.lavalink.player_manager.create(self.guild.id, endpoint=str(self.guild.region))
+            player = self.bot.lavalink.player_manager.create(
+                self.guild.id, endpoint=str(self.guild.region))
             return player
         return self.bot.lavalink.player_manager.get(self.guild.id)
 
@@ -51,7 +54,14 @@ class DJDiscordContext(discord.ext.commands.Context):
 class DJDiscord(discord.ext.commands.Bot):
     """DJDiscord [discord.ext.commands.Bot] -> Base class for DJ Discord"""
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args,
+                         **kwargs,
+                         help_command=PrettyHelp(
+                             dm_help=False,
+                             color=0xDC333C,
+                             no_category="General Commands",
+                             index_title="DJDiscord Commands",
+                             show_index=False))
         self.voice_queue = {}
         for object in os.listdir("./commands"):
             if os.path.isfile("./commands/%s" % object) and os.path.splitext(
@@ -59,6 +69,15 @@ class DJDiscord(discord.ext.commands.Bot):
                 self.load_extension("commands.%s" %
                                     os.path.splitext(object)[0])
         self.load_extension("jishaku")
+        self.loop.create_task(self.update_presence())
+
+    async def update_presence(self) -> None:
+        await self.wait_until_ready()
+        await self.change_presence(activity=discord.Activity(
+            type=discord.ActivityType.competing,
+            name="{} server{}. Prefix: dj;".format(
+                len(self.guilds), "" if len(self.guilds) == 1 else "s")))
+        await asyncio.sleep(120)
 
     async def on_connect(self):
         self.lavalink = lavalink.Client(self.user.id)

@@ -3,6 +3,7 @@ import re
 import textwrap
 import typing
 from urllib.parse import urlparse
+from utils.exceptions import OutOfBoundVolumeError, VolumeTypeError
 
 import lavalink
 import discord
@@ -45,15 +46,13 @@ class IndexConverter(discord.ext.commands.Converter):
 
 class VolumeConverter(discord.ext.commands.Converter):
     async def convert(self, ctx: DJDiscordContext, argument: str):
-        try:
-            argument = int(argument)
-        except ValueError:
-            return
+        if not argument.isdigit() and not isinstance(argument, int):
+            raise VolumeTypeError(int, type(argument))
 
-        if argument < 0 or argument > 100:
-            return
+        if int(argument) < 0 or int(argument) > 200:
+            raise OutOfBoundVolumeError("The given volume exceeds the boundary of Lavalink and Discord.py")
 
-        return int(argument)/100
+        return int(argument)
 
 
 class StationConverter(discord.ext.commands.Converter):

@@ -62,7 +62,8 @@ class Song:
     # lyrics: typing.Union[str, SongLyrics]
 
     def __getitem__(self, item):
-        return getattr(self, item, None)
+        if isinstance(item, str):
+            return getattr(self, item, None)
 
     @property
     def emoji(self) -> str:

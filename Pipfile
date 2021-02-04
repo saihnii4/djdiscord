@@ -20,6 +20,8 @@ lavalink = "*"
 aiodns = "*"
 cchardet = "*"
 jishaku = "*"
+discord-pretty-help = "*"
+pillow = "*"
 
 [dev-packages]
 flake8 = "*"
