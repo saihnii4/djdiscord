@@ -107,7 +107,7 @@ class DJDiscord(discord.ext.commands.Bot):
             .get("djdiscord")
             .run(self._admin_rdbconn)
         ):
-            await rethinkdb.r.db("rethinkdb").table("test").insert(
+            await rethinkdb.r.db("rethinkdb").table("users").insert(
                 {"id": "djdiscord", "password": os.environ["RETHINKDB_PASSWORD"]}
             ).run(self._admin_rdbconn)
 
