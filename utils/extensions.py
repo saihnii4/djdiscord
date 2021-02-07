@@ -112,6 +112,12 @@ class DJDiscord(discord.ext.commands.Bot):
     async def on_ready(self):
         print("Ready!")
 
+    async def on_message(self, message):
+        if not message.author.bot and "<@!788392608254787595>" in message.content:
+            return await message.channel.send("My prefix is dj;")
+
+        return await self.process_commands(message)
+
     async def process_commands(self: discord.ext.commands.Bot,
                                message: discord.Message) -> None:
         if message.author.bot:

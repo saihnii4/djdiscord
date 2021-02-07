@@ -98,7 +98,8 @@ class Music(discord.ext.commands.Cog):
         if ctx.guild is None:
             return
 
-        await self.ensure_voice(ctx)
+        if ctx.author.voice is not None:
+            await self.ensure_voice(ctx)
 
         await ctx.database.log(
             BeforeCogInvokeOp(ctx.author, self, ctx.command, ctx.guild,

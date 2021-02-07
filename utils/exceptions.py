@@ -2,6 +2,9 @@ class OutOfBoundVolumeError(Exception):
     def __init__(self, reason: str) -> None:
         super().__init__(reason)
 
+class NoResultsError(IndexError):
+    pass
+
 class VolumeTypeError(TypeError):
     def __init__(self, needed_type: any, given_type: any) -> None:
         self.needed_type = needed_type
