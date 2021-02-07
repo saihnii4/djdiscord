@@ -9,9 +9,11 @@ import discord
 import discord.ext.commands
 import rethinkdb
 
-from pretty_help import PrettyHelp, navigation
+from pretty_help import PrettyHelp
 from utils.objects import Templates
 from utils.database import DJDiscordDatabaseManager
+
+rethinkdb.r.set_loop_type("asyncio")
 
 
 class DJDiscordContext(discord.ext.commands.Context):
@@ -22,8 +24,7 @@ class DJDiscordContext(discord.ext.commands.Context):
     def player(self: DJDiscordContext) -> None:
         if not self.bot.lavalink.player_manager.get(self.guild.id):
             player = self.bot.lavalink.player_manager.create(
-                self.guild.id, endpoint=str(self.guild.region)
-            )
+                self.guild.id, endpoint=str(self.guild.region))
             return player
         return self.bot.lavalink.player_manager.get(self.guild.id)
 
@@ -34,8 +35,8 @@ class DJDiscordContext(discord.ext.commands.Context):
     @property
     async def dj(self: DJDiscordContext):
         role_id = await self.database.psqlconn.fetch(
-            """SELECT (dj_role) FROM configuration WHERE id=$1""", self.guild.id
-        )
+            """SELECT (dj_role) FROM configuration WHERE id=$1""",
+            self.guild.id)
 
         role = discord.utils.get(self.guild.roles, id=role_id)
 
@@ -54,39 +55,32 @@ class DJDiscordContext(discord.ext.commands.Context):
 
 class DJDiscord(discord.ext.commands.Bot):
     """DJDiscord [discord.ext.commands.Bot] -> Base class for DJ Discord"""
-
     def __init__(self, *args, **kwargs):
-        super().__init__(
-            *args,
-            **kwargs,
-            help_command=PrettyHelp(
-                dm_help=False,
-                color=0xDC333C,
-                no_category="General Commands",
-                index_title="DJDiscord Commands",
-                show_index=False,
-            )
-        )
+        super().__init__(*args,
+                         **kwargs,
+                         help_command=PrettyHelp(
+                             dm_help=False,
+                             color=0xDC333C,
+                             no_category="General Commands",
+                             index_title="DJDiscord Commands",
+                             show_index=False,
+                         ))
         self.voice_queue = {}
         for object in os.listdir("./commands"):
-            if (
-                os.path.isfile("./commands/%s" % object)
-                and os.path.splitext("./commands/%s" % object)[1] == ".py"
-            ):
-                self.load_extension("commands.%s" % os.path.splitext(object)[0])
+            if (os.path.isfile("./commands/%s" % object) and os.path.splitext(
+                    "./commands/%s" % object)[1] == ".py"):
+                self.load_extension("commands.%s" %
+                                    os.path.splitext(object)[0])
         self.load_extension("jishaku")
         self.loop.create_task(self.update_presence())
 
     async def update_presence(self) -> None:
         await self.wait_until_ready()
-        await self.change_presence(
-            activity=discord.Activity(
-                type=discord.ActivityType.competing,
-                name="{} server{}. Prefix: dj;".format(
-                    len(self.guilds), "" if len(self.guilds) == 1 else "s"
-                ),
-            )
-        )
+        await self.change_presence(activity=discord.Activity(
+            type=discord.ActivityType.competing,
+            name="{} server{}. Prefix: dj;".format(
+                len(self.guilds), "" if len(self.guilds) == 1 else "s"),
+        ))
         await asyncio.sleep(120)
 
     async def on_connect(self):
@@ -98,8 +92,8 @@ class DJDiscord(discord.ext.commands.Bot):
             os.environ["LAVALINK_REGION"],
             os.environ["LAVALINK_NODE_NAME"],
         )
-        self.add_listener(self.lavalink.voice_update_handler, "on_socket_response")
-        rethinkdb.r.set_loop_type("asyncio")
+        self.add_listener(self.lavalink.voice_update_handler,
+                          "on_socket_response")
         self.rdbconn = await rethinkdb.r.connect(
             db="djdiscord",
             host=os.environ["RETHINKDB_HOST"],
@@ -118,9 +112,8 @@ class DJDiscord(discord.ext.commands.Bot):
     async def on_ready(self):
         print("Ready!")
 
-    async def process_commands(
-        self: discord.ext.commands.Bot, message: discord.Message
-    ) -> None:
+    async def process_commands(self: discord.ext.commands.Bot,
+                               message: discord.Message) -> None:
         if message.author.bot:
             return
 

@@ -50,7 +50,9 @@ class VolumeConverter(discord.ext.commands.Converter):
             raise VolumeTypeError(int, type(argument))
 
         if int(argument) < 0 or int(argument) > 200:
-            raise OutOfBoundVolumeError("The given volume exceeds the boundary of Lavalink and Discord.py")
+            raise OutOfBoundVolumeError(
+                "The given volume exceeds the boundary of Lavalink and Discord.py"
+            )
 
         return int(argument)
 
@@ -60,12 +62,14 @@ class StationConverter(discord.ext.commands.Converter):
                       argument: str) -> typing.Optional[Station]:
         if len(argument) == 4 and re.compile(
                 r"[AKNWaknw][a-zA-Z]{0,2}[0123456789][a-zA-Z]{1,3}").match(
-            argument):
+                    argument):
             raw = await ctx.database.get(call_sign=argument, table="stations")
             return Station.from_json(raw)
 
-        if re.compile(r'^-?\d+(?:\.\d+)$').match(argument) and 87.5 <= float(argument) <= 108:
-            if raw := await ctx.database.get(frequency=float(argument), table="stations"):
+        if re.compile(r'^-?\d+(?:\.\d+)$').match(
+                argument) and 87.5 <= float(argument) <= 108:
+            if raw := await ctx.database.get(frequency=float(argument),
+                                             table="stations"):
                 return Station.from_json(raw[0])
 
 
@@ -91,13 +95,14 @@ class PlaylistConverter(discord.ext.commands.Converter):
                             playlist["author"], playlist["cover"])
 
         slot = (await ctx.database.get(name=argument))[0]
-        return Playlist(slot["id"], slot["songs"], playlist["author"],
-                        playlist["cover"])
+        return Playlist(slot["id"], slot["songs"], slot["author"],
+                        slot["cover"])
 
     async def default(self, ctx: DJDiscordContext) -> Playlist:
         playlist = await ctx.database.get(id=ctx.author.id)
-        return Playlist(playlist["id"], playlist["songs"],
-                        playlist["author"], playlist["cover"])
+        return Playlist(playlist["id"], playlist["songs"], playlist["author"],
+                        playlist["cover"])
+
 
 class SongConverter(discord.ext.commands.Converter):
     async def convert(self, ctx: DJDiscordContext, argument: str) -> Song:
@@ -170,8 +175,8 @@ class PlaylistPaginator(discord.ext.menus.ListPageSource):
             template.add_field(
                 name="%s `{}.` {}".format(index + 1, song["title"]) %
                 song_emoji_conversion[urlparse(song["url"]).netloc],
-                value=
-                "Created: `{0[created]}`\nDuration: `{0[length]}` seconds, Author: `{0[uploader]}`"
+                value="Created: `{0[created]}`\n"
+                      "Duration: `{0[length]}` seconds, Author: `{0[uploader]}`"
                 .format(song),
                 inline=False)
 
@@ -219,10 +224,10 @@ class PlaylistsPaginator(discord.ext.menus.ListPageSource):
         self.playlists = playlists
 
     async def format_page(self, menu, page):
-        format = self.templates.playlistsPaginator.copy()
-        format.title = format.title.format(self.author.name)
-        format.description = format.description.format(len(self.playlists))
-        format.add_field(name="`%s`" % page["name"],
-                         value="ID: `{0[id]}`, Song Count: `{1}`".format(
-                             page, len(page["songs"])))
-        return format
+        embed = self.templates.playlistsPaginator.copy()
+        embed.title = embed.title.format(self.author.name)
+        embed.description = format.description.format(len(self.playlists))
+        embed.add_field(embed="`%s`" % page["name"],
+                        value="ID: `{0[id]}`, Song Count: `{1}`".format(
+                            page, len(page["songs"])))
+        return embed

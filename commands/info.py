@@ -14,8 +14,8 @@ async def info(ctx: discord.ext.commands.Context):
         timestamp=datetime.now()
     ).add_field(
         name="quid est quod ego?",
-        value=
-        "I came up with the idea on a stroll through a park, seeing that no one made a similar bot, I decided to make this."
+        value="I came up with the idea on a stroll through a park, "
+              "seeing that no one made a similar bot, I decided to make this."
     ).add_field(
         name="is it open source?",
         value="[yes](https://github.com/notduckduckcode/djdiscord)",
