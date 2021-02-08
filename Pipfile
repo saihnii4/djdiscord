@@ -22,6 +22,7 @@ cchardet = "*"
 jishaku = "*"
 discord-pretty-help = "*"
 pillow = "*"
+python-dateutil = "*"
 
 [dev-packages]
 flake8 = "*"

@@ -5,7 +5,7 @@ import typing
 from urllib.parse import urlparse
 from utils.exceptions import OutOfBoundVolumeError, VolumeTypeError
 
-import lavalink
+import dateutil.relativedelta
 import discord
 import discord.ext.commands
 import discord.ext.menus
@@ -176,11 +176,39 @@ class PlaylistPaginator(discord.ext.menus.ListPageSource):
                 name="%s `{}.` {}".format(index + 1, song["title"]) %
                 song_emoji_conversion[urlparse(song["url"]).netloc],
                 value="Created: `{0[created]}`\n"
-                      "Duration: `{0[length]}` seconds, Author: `{0[uploader]}`"
-                .format(song),
+                "Duration: `{0[length]}` seconds, Author: `{0[uploader]}`".
+                format(song),
                 inline=False)
 
         return template
+
+
+class TrackPositionConverter(discord.ext.commands.Converter):
+    async def convert(self, ctx: discord.ext.commands.Context,
+                      argument: str) -> float:
+        regex = re.compile(r"(?:(?P<years>\d)y)?"
+                           r"(?:(?P<months>\d{1,2})mo)?"
+                           r"(?:(?P<weeks>\d{1,4})w)?"
+                           r"(?:(?P<days>\d{1,5})d)?"
+                           r"(?:(?P<hours>\d{1,5})h)?"
+                           r"(?:(?P<minutes>\d{1,5})m)?"
+                           r"(?:(?P<seconds>\d{1,5})s)?")
+        if "%" in argument:
+            return ctx.player.position * (float(argument.strip("%")) / 100)
+        if match := regex.fullmatch(argument):
+            duration_dict = {
+                k: int(v)
+                for k, v in match.groupdict(default=0).items()
+            }
+            delta: datetime.datetime = datetime.datetime.now(
+            ) + dateutil.relativedelta.relativedelta(**duration_dict)
+            return (delta.timestamp() -
+                    datetime.datetime.now().timestamp()) * 1000
+        try:
+            if float(argument) >= 1000.0:
+                return float(argument)
+        except ValueError:
+            return
 
 
 class NameValidator(discord.ext.commands.Converter):

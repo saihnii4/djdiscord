@@ -14,6 +14,7 @@ import rethinkdb
 
 from utils.exceptions import OutOfBoundVolumeError, VolumeTypeError
 from utils.convert import IndexConverter
+from utils.convert import TrackPositionConverter
 from utils.convert import PlaylistConverter
 from utils.convert import PlaylistPaginator
 from utils.convert import SongConverter
@@ -174,6 +175,24 @@ class Music(discord.ext.commands.Cog):
 
         if not ctx.player.is_playing:
             await ctx.player.play()
+
+    @discord.ext.commands.command(name="position", aliases=["pos"])
+    async def position(self, ctx: DJDiscordContext, position: TrackPositionConverter) -> None:
+        print(position)
+        if ctx.author.voice is None:
+            return await ctx.send(
+                "You need to join a voice channel to see the current song in the queue"
+            )
+
+        if not ctx.player.is_playing:
+            return await ctx.send("The bot isn't playing any music")
+
+        if position >= ctx.player.current.duration:
+            return await ctx.send("hi")
+        
+        await ctx.player.seek(position)
+
+        return await ctx.send("Changed position on track")
 
     @discord.ext.commands.command(name="rawplay", alias=["rawstart", "rawrun"])
     async def rawplay(self, ctx: DJDiscordContext, *,
