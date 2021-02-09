@@ -120,12 +120,13 @@ class SongConverter(discord.ext.commands.Converter):
                 with youtube_dl.YoutubeDL(ydl_opts) as ytdl:
                     if data := ytdl.extract_info("ytsearch:%s" % track["name"],
                                                  download=False):
+                        print(data)
                         return Song(
                             data["entries"][0]["formats"][0]["url"],
                             data["entries"][0]["webpage_url"],
                             ", ".join(artist["name"]
                                       for artist in track["artists"]),
-                            track["name"], track["album"]["images"][0],
+                            track["name"], data["entries"][0]["thumbnails"],
                             datetime.datetime.strptime(
                                 data["entries"][0]["upload_date"],
                                 "%Y%m%d").astimezone().strftime("%Y-%m-%d"),
