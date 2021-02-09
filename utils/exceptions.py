@@ -17,3 +17,10 @@ class VolumeTypeError(TypeError):
 
     def __repr__(self) -> str:
         return "Method needed object of type {0}, but was given {1} instead".format(self.needed_type, self.given_type)
+
+class PlaylistGivenError(TypeError):
+    def __str__(self) -> str:
+        return "Expected a song, but I was given a playlist instead"
+    
+    def __repr__(self) -> str:
+        return "Expected a song, but I was given a playlist instead"

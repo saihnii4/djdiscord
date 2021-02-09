@@ -6,8 +6,10 @@ import os
 import asyncpg
 import lavalink
 import discord
-import discord.ext.commands
 import rethinkdb
+import async_spotify
+import discord.ext.commands
+import async_spotify.authentification.authorization_flows
 
 from pretty_help import PrettyHelp
 from utils.objects import Templates
@@ -19,6 +21,10 @@ rethinkdb.r.set_loop_type("asyncio")
 class DJDiscordContext(discord.ext.commands.Context):
     def __init__(self: DJDiscordContext, **kwargs: dict) -> None:
         super().__init__(**kwargs)
+
+    @property
+    def spotify(self: DJDiscordContext) -> async_spotify.SpotifyApiClient:
+        return self.bot.spotify_api_client
 
     @property
     def player(self: DJDiscordContext) -> None:
@@ -94,6 +100,14 @@ class DJDiscord(discord.ext.commands.Bot):
         )
         self.add_listener(self.lavalink.voice_update_handler,
                           "on_socket_response")
+        auth_flow = async_spotify.authentification.authorization_flows.ClientCredentialsFlow(
+            application_id=os.environ["SPOTIPY_CLIENT_ID"],
+            application_secret=os.environ["SPOTIPY_CLIENT_SECRET"])
+        auth_flow.load_from_env()
+        self.spotify_api_client = async_spotify.SpotifyApiClient(
+            auth_flow, hold_authentication=True)
+        await self.spotify_api_client.get_auth_token_with_client_credentials()
+        await self.spotify_api_client.create_new_client()
         self.rdbconn = await rethinkdb.r.connect(
             db="djdiscord",
             host=os.environ["RETHINKDB_HOST"],

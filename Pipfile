@@ -23,6 +23,7 @@ jishaku = "*"
 discord-pretty-help = "*"
 pillow = "*"
 python-dateutil = "*"
+async-spotify = "*"
 
 [dev-packages]
 flake8 = "*"

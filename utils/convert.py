@@ -3,7 +3,7 @@ import re
 import textwrap
 import typing
 from urllib.parse import urlparse
-from utils.exceptions import OutOfBoundVolumeError, VolumeTypeError
+from utils.exceptions import OutOfBoundVolumeError, VolumeTypeError, PlaylistGivenError
 
 import dateutil.relativedelta
 import discord
@@ -98,22 +98,38 @@ class PlaylistConverter(discord.ext.commands.Converter):
         return Playlist(slot["id"], slot["songs"], slot["author"],
                         slot["cover"])
 
-    async def default(self, ctx: DJDiscordContext) -> Playlist:
-        playlist = await ctx.database.get(id=ctx.author.id)
-        return Playlist(playlist["id"], playlist["songs"], playlist["author"],
-                        playlist["cover"])
-
 
 class SongConverter(discord.ext.commands.Converter):
     async def convert(self, ctx: DJDiscordContext, argument: str) -> Song:
         target = "ytsearch:%s" % argument
 
-        if urlparse(argument).netloc in (
-                "open.spotify.com",
-                "www.youtube.com",
-                "soundcloud.com",
-        ):
+        if urlparse(argument).netloc in ("www.youtube.com", "soundcloud.com",
+                                         "www.twitch.tv"):
             target = argument
+        elif urlparse(argument).netloc == "open.spotify.com":
+            playlist_regex = re.compile(
+                r"^(https:\/\/open.spotify.com\/playlist\/)([a-zA-Z0-9]+)(.*?)"
+            )
+            song_regex = re.compile(
+                r"^(https:\/\/open.spotify.com\/track\/)([a-zA-Z0-9]+)(.*?)")
+            if playlist_regex.match(argument) is not None:
+                raise PlaylistGivenError
+            elif song_regex.match(argument) is not None:
+                track = await ctx.spotify.track.get_one(
+                    argument.split("track/")[-1])
+                with youtube_dl.YoutubeDL(ydl_opts) as ytdl:
+                    if data := ytdl.extract_info("ytsearch:%s" % track["name"],
+                                                 download=False):
+                        return Song(
+                            data["entries"][0]["formats"][0]["url"],
+                            data["entries"][0]["webpage_url"],
+                            ", ".join(artist["name"]
+                                      for artist in track["artists"]),
+                            track["name"], track["album"]["images"][0],
+                            datetime.datetime.strptime(
+                                data["entries"][0]["upload_date"],
+                                "%Y%m%d").astimezone().strftime("%Y-%m-%d"),
+                            track["duration_ms"])
 
         with youtube_dl.YoutubeDL(ydl_opts) as ytdl:
             if data := ytdl.extract_info(target, download=False):

@@ -194,6 +194,17 @@ class Music(discord.ext.commands.Cog):
 
         return await ctx.send("Changed position on track")
 
+    @discord.ext.commands.command(name="equalizer", aliases=["eq"])
+    async def equalizer(self, ctx: DJDiscordContext, band: int, gain: float):
+        if band > 14 or band < 0:
+            return await ctx.send("You have sent a band that is out of range")
+        if gain > 1 or gain < -0.25:
+            return await ctx.send("You have sent a gain that is out of range")
+        
+        await ctx.player.set_gain(band, gain)
+
+        return await ctx.send("Equalizer: Set {} to {}".format(band, gain))
+
     @discord.ext.commands.command(name="rawplay", alias=["rawstart", "rawrun"])
     async def rawplay(self, ctx: DJDiscordContext, *,
                       query: SongConverter) -> None:

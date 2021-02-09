@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "903f09829254050b80bceeb7d4b50d77bc83fde46be6d26c3d43d18dd49bdfe2"
+            "sha256": "f30cd69f5b1d789869228eb202d9d199a0c6b36866cb630a00dba83b248477fb"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -49,6 +49,13 @@
                 "sha256:c2652417f2c8b5bb325c885ae329bdf3f86424075c4fd1a128674bc6fba4b8e8"
             ],
             "version": "==1.6.3"
+        },
+        "async-spotify": {
+            "hashes": [
+                "sha256:7fccc0de213a148acfa12322a3ad7a06a36836a85c832eed06d1b4a5655b1ea4"
+            ],
+            "index": "pypi",
+            "version": "==0.4.1"
         },
         "async-timeout": {
             "hashes": [
@@ -234,7 +241,7 @@
                 "sha256:ab69004895689951b79f2ae4fdd6b8127ff0c180aff107856d5d98119a33f026",
                 "sha256:d47d80cd47c1511ed3e49ca5f10c82ed940ea020b45b49ab106ed77fa8bb9d22"
             ],
-            "markers": "python_version >= '3.6'",
+            "markers": "python_full_version >= '3.6.0'",
             "version": "==3.2.0"
         },
         "idna": {
