@@ -529,6 +529,5 @@ class Music(discord.ext.commands.Cog):
                 "https://cdn.discordapp.com/attachments/783142801294098474/800616839754678272/congrats.gif"
             ))
 
-
 def setup(bot: discord.ext.commands.Bot) -> None:
     bot.add_cog(Music(bot))
